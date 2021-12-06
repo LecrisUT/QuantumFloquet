@@ -1,0 +1,1 @@
+## Placeholder if more structured metadata is needed for CLI, etc.

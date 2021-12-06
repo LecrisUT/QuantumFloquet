@@ -1,0 +1,12 @@
+//
+// Created by Le Minh Cristian on 2021/09/27.
+//
+
+#ifndef QUANFLOQ_H
+#define QUANFLOQ_H
+
+#define QUANFLOQ_VERSION @QuanFloq_VERSION@
+#define QUANFLOQ_VERSION_MAJOR @QuanFloq_VERSION_MAJOR@
+#define QUANFLOQ_VERSION_MINOR @QuanFloq_VERSION_MINOR@
+
+#endif //QUANFLOQ_H
