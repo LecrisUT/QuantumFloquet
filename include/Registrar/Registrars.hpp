@@ -24,12 +24,14 @@ namespace QuanFloq {
 	 */
 	struct IRegistrar {
 		// Need to call RegistrationQueue.resume() on all Registrars after static initialization step and other steps
-		static std::set<IRegistrar*> Registrars;
+		inline static std::set<IRegistrar*> registrars;
+		// Unfortunately std::set does not have constexpr constructor
+//		constinit static std::set<IRegistrar*> registrars;
 		static void ResolveDanglingRegisters();
 
-		std::map<std::string, std::list<std::coroutine_handle<>>, std::less<>> RegistrationQueue;
+		std::map<std::string, std::list<std::coroutine_handle<>>, std::less<>> registrationQueue;
 
-		IRegistrar();
+		IRegistrar() noexcept;
 		virtual ~IRegistrar();
 
 		virtual bool Contains( std::string_view str ) const = 0;
@@ -56,11 +58,13 @@ namespace QuanFloq {
 	template<class T>
 	struct RefRegistrarRoot :
 			IRegistrar {
-		std::set<std::reference_wrapper<const T>> Set;
+		using value_type = T;
 		// TODO: Switch to unordered_set when can get bucket from equivalent key
-//		std::unordered_set<std::reference_wrapper<T>> Set;
+		using set_type = std::set<std::reference_wrapper<const T>>;
 
-		RefRegistrarRoot();
+		set_type Set;
+
+		RefRegistrarRoot() noexcept;
 		bool Contains( std::string_view str ) const override;
 		const void* VoidRef( std::string_view str ) const override;
 		bool TryRegister( const std::shared_ptr<IExposable>& ptr ) override;
@@ -82,10 +86,13 @@ namespace QuanFloq {
 	template<class T>
 	struct SharedRegistrarRoot :
 			RefRegistrarRoot<T> {
-		using IRegistrar::RegistrationQueue;
+		using value_type = T;
+		using set_type = std::set<std::shared_ptr<T>>;
+		using IRegistrar::registrationQueue;
 		using IRegistrar::ResolvePostRegister;
-		std::set<std::shared_ptr<T>> Set;
-//		std::unordered_set<std::shared_ptr<T>,hash<T>> Set;
+
+		set_type Set;
+
 		bool Contains( std::string_view str ) const override;
 		std::shared_ptr<void> VoidPtr( std::string_view str ) const override;
 		bool TryRegister( const std::shared_ptr<IExposable>& ptr ) override;
@@ -104,8 +111,12 @@ namespace QuanFloq {
 	template<class T>
 	struct ObjectRegistrar :
 			IRegistrar {
-		std::set<T> Set;
-		ObjectRegistrar();
+		using value_type = T;
+		using set_type = std::set<T>;
+
+		set_type Set;
+
+		ObjectRegistrar() noexcept;
 		bool Contains( std::string_view str ) const override;
 		const void* VoidRef( std::string_view str ) const override;
 		template<class ...Args>
@@ -130,10 +141,12 @@ namespace QuanFloq {
 	template<class T, strComparable U>
 	struct RefRegistrar :
 			RefRegistrarRoot<T> {
+		using base_type = U;
+
 		RefRegistrarRoot<U>& Root;
 
-		RefRegistrar() requires stdRegistrar<U>;
-		explicit RefRegistrar( RefRegistrarRoot<U>& root );
+		RefRegistrar() noexcept requires stdRegistrar<U>;
+		explicit RefRegistrar( RefRegistrarRoot<U>& root ) noexcept;
 
 		bool Register( T& item ) override;
 		bool Erase( T& item ) override;
@@ -150,10 +163,12 @@ namespace QuanFloq {
 	template<class T, strComparable U>
 	struct SharedRegistrar :
 			SharedRegistrarRoot<T> {
+		using base_type = U;
+
 		SharedRegistrarRoot<U>& Root;
 
-		SharedRegistrar() requires stdRegistrar<U>;
-		explicit SharedRegistrar( SharedRegistrarRoot<U>& root );
+		SharedRegistrar() noexcept requires stdRegistrar<U>;
+		explicit SharedRegistrar( SharedRegistrarRoot<U>& root ) noexcept;
 
 		bool Register( std::shared_ptr<T> item ) override;
 		bool Erase( std::shared_ptr<T> item ) override;
@@ -174,6 +189,7 @@ namespace QuanFloq {
 		struct promise_type {
 			IRegistrar& registrar;
 			std::string name;
+
 			RegistrationTask get_return_object();
 			std::suspend_never initial_suspend();
 			std::suspend_never final_suspend() noexcept;
@@ -214,6 +230,9 @@ namespace QuanFloq {
 	template<class T, template<class> class TRegistrar = SharedRegistrarRoot> requires std::derived_from<TRegistrar<T>, IRegistrar>
 	struct RegistrarAwaitGet :
 			RegistrarAwaitGetBase {
+		using value_type = T;
+		using registrar_type = TRegistrar<T>;
+
 		TRegistrar<T>& registrar;
 		auto await_resume() const;
 		explicit RegistrarAwaitGet( TRegistrar<T>& registrar );

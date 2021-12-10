@@ -44,11 +44,10 @@ namespace QuanFloq {
 }
 // endregion
 
-// region Static functions and initializers
-std::set<IRegistrar*> IRegistrar::Registrars = std::set<IRegistrar*>();
+// region Static function definitions
 void IRegistrar::ResolveDanglingRegisters() {
-	for (auto& registrar: Registrars)
-		for (auto& items: registrar->RegistrationQueue)
+	for (auto& registrar: registrars)
+		for (auto& items: registrar->registrationQueue)
 			for (auto& handle: items.second)
 				handle.resume();
 }
@@ -56,11 +55,11 @@ void IRegistrar::ResolveDanglingRegisters() {
 
 // region Constructor/Destructor
 IRegistrar::~IRegistrar() {
-	Registrars.erase(this);
+	registrars.erase(this);
 }
-IRegistrar::IRegistrar() {
+IRegistrar::IRegistrar() noexcept {
 	// Initialization fiasco is avoided by the order in this file.
-	Registrars.insert(this);
+	registrars.insert(this);
 }
 RegistrationTask::promise_type::promise_type( IRegistrar& registrar,
                                               std::string_view name, const void*& ) :
@@ -108,8 +107,8 @@ RegistrationTask IRegistrar::AwaitGet( std::string_view, std::shared_ptr<void>& 
 	assert(value != nullptr);
 }
 void IRegistrar::ResolvePostRegister( std::string_view str ) {
-	auto queue = RegistrationQueue.find(str);
-	if (queue == RegistrationQueue.end())
+	auto queue = registrationQueue.find(str);
+	if (queue == registrationQueue.end())
 		// No queue was formed
 		return;
 	// Need to rehash to correctly check contains
@@ -127,8 +126,8 @@ std::suspend_never RegistrationTask::promise_type::initial_suspend() {
 	return {};
 }
 std::suspend_never RegistrationTask::promise_type::final_suspend() noexcept {
-	auto queue = registrar.RegistrationQueue.find(name);
-	if (queue != registrar.RegistrationQueue.end()) {
+	auto queue = registrar.registrationQueue.find(name);
+	if (queue != registrar.registrationQueue.end()) {
 		queue->second.remove(GetHandle());
 	}
 	return {};
@@ -150,7 +149,7 @@ bool RegistrarAwaitGetBase::await_ready() const {
 	// If object is already registered, no need to co_await
 	if (promise->registrar.Contains(promise->name))
 		return true;
-	promise->registrar.RegistrationQueue[promise->name].push_back(promise->GetHandle());
+	promise->registrar.registrationQueue[promise->name].push_back(promise->GetHandle());
 	return false;
 }
 bool RegistrarAwaitGetBase::await_suspend( RegistrationHandle h ) const {

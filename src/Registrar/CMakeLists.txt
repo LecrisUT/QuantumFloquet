@@ -1,1 +1,2 @@
-target_sources(Registrar INTERFACE Registrars.cpp)
+target_sources(Registrar INTERFACE
+		Registrars.cpp Registration.cpp)

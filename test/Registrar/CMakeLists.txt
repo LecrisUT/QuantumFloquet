@@ -1,9 +1,15 @@
-add_library(libTestRegistrars SHARED)
-target_link_libraries(libTestRegistrars
+add_library(TestRegistrarShared SHARED)
+target_link_libraries(TestRegistrarShared
 		PUBLIC Registrar BaseTest)
 add_executable(test_Concepts test_Concepts.cpp)
 target_link_libraries(test_Concepts
-		PUBLIC libTestRegistrars)
+		PUBLIC TestRegistrarShared)
 add_executable(test_Registrars test_Registrars.cpp)
 target_link_libraries(test_Registrars
-		PUBLIC libTestRegistrars)
+		PUBLIC TestRegistrarShared)
+add_library(RegistrationShared SHARED libRegistration.cpp)
+target_link_libraries(RegistrationShared
+		PUBLIC Registrar)
+add_executable(test_Registration test_Registration.cpp)
+target_link_libraries(test_Registration
+		PUBLIC TestRegistrarShared RegistrationShared)

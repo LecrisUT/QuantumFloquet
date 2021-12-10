@@ -66,30 +66,30 @@ namespace QuanFloq {
 
 // region Constructors
 template<class T>
-RefRegistrarRoot<T>::RefRegistrarRoot() {
+RefRegistrarRoot<T>::RefRegistrarRoot() noexcept {
 	static_assert(strComparable<T>);
 }
 template<class T>
-ObjectRegistrar<T>::ObjectRegistrar() {
+ObjectRegistrar<T>::ObjectRegistrar() noexcept {
 	static_assert(strComparable<T>);
 }
 template<class T, strComparable U>
-RefRegistrar<T, U>::RefRegistrar() requires stdRegistrar<U> :
+RefRegistrar<T, U>::RefRegistrar() noexcept requires stdRegistrar<U> :
 		Root{U::registrar} {
 	static_assert(std::derived_from<T, U>);
 }
 template<class T, strComparable U>
-RefRegistrar<T, U>::RefRegistrar( RefRegistrarRoot<U>& root ) :
+RefRegistrar<T, U>::RefRegistrar( RefRegistrarRoot<U>& root ) noexcept :
 		Root{root} {
 	static_assert(std::derived_from<T, U>);
 }
 template<class T, strComparable U>
-SharedRegistrar<T, U>::SharedRegistrar() requires stdRegistrar<U> :
+SharedRegistrar<T, U>::SharedRegistrar() noexcept requires stdRegistrar<U> :
 		Root{U::registrar} {
 	static_assert(std::derived_from<T, U>);
 }
 template<class T, strComparable U>
-SharedRegistrar<T, U>::SharedRegistrar( SharedRegistrarRoot<U>& root ) :
+SharedRegistrar<T, U>::SharedRegistrar( SharedRegistrarRoot<U>& root ) noexcept :
 		Root{root} {
 	static_assert(std::derived_from<T, U>);
 }

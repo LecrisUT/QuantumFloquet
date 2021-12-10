@@ -12,11 +12,18 @@
 
 namespace QuanFloq {
 	// Forward declarations
+	struct IRegistrar;
 	template<class>
 	struct RefRegistrarRoot;
 	template<class>
 	struct SharedRegistrarRoot;
+	struct RegistrationBase;
 
+
+	template<class T>
+	concept stdRegistered = requires{
+		{ T::registration } -> std::convertible_to<RegistrationBase>;
+	};
 	/**
 	 * Helper concept for smart pointers.
 	 * @tparam P Template of the smart pointer
@@ -68,15 +75,18 @@ namespace QuanFloq {
 	}
 
 	template<class T>
-	concept stdRegistrar = requires{
-		{ T::registrar } -> std::convertible_to<RefRegistrarRoot<T>>;
+	concept stdIRegistrar = std::derived_from<decltype(T::registrar), IRegistrar> && requires{
+		// Static registrar member is an IRegistrar and it has a member type to retrieve the template variable
+		typename decltype(T::registrar)::value_type;
 	};
-	template<class T>
-	concept stdSharedRegistrar = requires{
-		{ T::registrar } -> std::convertible_to<SharedRegistrarRoot<T>>;
-	};
-	template<class T>
-	concept stdRefRegistrar = stdRegistrar<T> && !stdSharedRegistrar<T>;
+	template<class T, class Base = typename decltype(T::registrar)::value_type>
+	concept stdRegistrar = std::derived_from<T, Base> && stdIRegistrar<T> &&
+	                       std::derived_from<decltype(T::registrar), RefRegistrarRoot<Base>>;
+	template<class T, class Base = typename decltype(T::registrar)::value_type>
+	concept stdSharedRegistrar = std::derived_from<T, Base> && stdIRegistrar<T> &&
+	                             std::derived_from<decltype(T::registrar), SharedRegistrarRoot<Base>>;
+	template<class T, class Base = typename decltype(T::registrar)::value_type>
+	concept stdRefRegistrar = stdRegistrar<T, Base> && !stdSharedRegistrar<T, Base>;
 
 	// Cannot use template parameter or derived typename to simplify the following
 	/**
