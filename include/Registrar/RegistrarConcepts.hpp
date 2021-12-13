@@ -18,12 +18,19 @@ namespace QuanFloq {
 	template<class>
 	struct SharedRegistrarRoot;
 	struct RegistrationBase;
+	struct TypeRegistration;
+	template<class>
+	class Factory;
 
 
 	template<class T>
-	concept stdRegistered = requires{
-		{ T::registration } -> std::convertible_to<RegistrationBase>;
-	};
+	concept stdRegistered = std::derived_from<decltype(T::registration), RegistrationBase>;
+	// TODO: Cannot detect if proper type is registered without constexpr magic
+	template<class T>
+	concept stdTypeRegistered = std::derived_from<decltype(T::typeRegistration), TypeRegistration>;
+	template<class T>
+	concept stdFactory = std::derived_from<decltype(T::factory), Factory<T>>;
+
 	/**
 	 * Helper concept for smart pointers.
 	 * @tparam P Template of the smart pointer
@@ -145,6 +152,10 @@ namespace QuanFloq {
 			return t2.empty();
 		return *t1 == t2;
 	}
+	template<class T>
+	bool operator==( const std::reference_wrapper<T>& t1, const std::reference_wrapper<T>& t2 ) {
+		return t1.get() == t2.get();
+	}
 	/**
 	 * Default equality comparator of reference_wrapper with string_view for operator[]
 	 * @tparam T
@@ -172,9 +183,6 @@ struct std::hash<T> : std::hash<std::string_view> {
 	size_t operator()( const T& val ) const noexcept {
 		return operator()(val.GetName());
 	}
-//	size_t operator()( std::string_view val ) const noexcept {
-//		return std::hash<std::string_view>::operator()(val);
-//	}
 };
 template<QuanFloq::stdNamed T>
 struct std::hash<std::reference_wrapper<T>> : std::hash<std::string_view> {
@@ -183,9 +191,6 @@ struct std::hash<std::reference_wrapper<T>> : std::hash<std::string_view> {
 	size_t operator()( const std::reference_wrapper<T>& val ) const noexcept {
 		return operator()(val.get().GetName());
 	}
-//	size_t operator()( std::string_view val ) const noexcept {
-//		return std::hash<std::string_view>::operator()(val);
-//	}
 };
 
 // TODO: This specialization fails
@@ -231,19 +236,19 @@ struct std::less<std::shared_ptr<T>> {
 	using is_transparent = void;
 	constexpr bool operator()( const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs ) const {
 		if (lhs == nullptr)
-			return nullptr < rhs;
+			return rhs != nullptr;
 		if (rhs == nullptr)
-			return lhs < nullptr;
+			return false;
 		return lhs->GetName() < rhs->GetName();
 	}
 	constexpr bool operator()( const std::shared_ptr<T>& lhs, std::string_view rhs ) const {
 		if (lhs == nullptr)
-			return "" < rhs;
+			return !rhs.empty();
 		return lhs->GetName() < rhs;
 	}
 	constexpr bool operator()( std::string_view lhs, const std::shared_ptr<T>& rhs ) const {
 		if (rhs == nullptr)
-			return lhs < "";
+			return false;
 		return lhs < rhs->GetName();
 	}
 };
@@ -251,7 +256,7 @@ template<QuanFloq::stdNamed T>
 struct std::equal_to<T> {
 	using is_transparent = void;
 	constexpr bool operator()( const T& lhs, const T& rhs ) const {
-		return lhs.GetName() == rhs.GetName();
+		return lhs == rhs;
 	}
 	constexpr bool operator()( const T& lhs, std::string_view rhs ) const {
 		return lhs.GetName() == rhs;
@@ -264,7 +269,7 @@ template<QuanFloq::stdNamed T>
 struct std::equal_to<std::reference_wrapper<T>> {
 	using is_transparent = void;
 	constexpr bool operator()( const std::reference_wrapper<T>& lhs, const std::reference_wrapper<T>& rhs ) const {
-		return lhs.get().GetName() == rhs.get().GetName();
+		return lhs.get() == rhs.get();
 	}
 	constexpr bool operator()( const std::reference_wrapper<T>& lhs, std::string_view rhs ) const {
 		return lhs.get().GetName() == rhs;

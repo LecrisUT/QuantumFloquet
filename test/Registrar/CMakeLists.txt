@@ -13,3 +13,9 @@ target_link_libraries(RegistrationShared
 add_executable(test_Registration test_Registration.cpp)
 target_link_libraries(test_Registration
 		PUBLIC TestRegistrarShared RegistrationShared)
+add_library(TypeInfoShared SHARED libTypeInfo.cpp)
+target_link_libraries(TypeInfoShared
+		PUBLIC Registrar)
+add_executable(test_TypeInfo test_TypeInfo.cpp)
+target_link_libraries(test_TypeInfo
+		PUBLIC TestRegistrarShared TypeInfoShared)

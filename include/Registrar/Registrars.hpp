@@ -9,7 +9,6 @@
 #include "RegistrarConcepts.hpp"
 #include <typeindex>
 #include <set>
-#include <unordered_set>
 #include <memory>
 #include <coroutine>
 #include <map>
@@ -18,15 +17,17 @@
 namespace QuanFloq {
 	struct IExposable;
 	struct RegistrationTask;
+	struct TypeInfo;
 
+	// region Bases
 	/**
 	 * Registrar interface
 	 */
 	struct IRegistrar {
 		// Need to call RegistrationQueue.resume() on all Registrars after static initialization step and other steps
-		inline static std::set<IRegistrar*> registrars;
-		// Unfortunately std::set does not have constexpr constructor
+		// Unfortunately std::set does not have constexpr constructor. Using inline static instead.
 //		constinit static std::set<IRegistrar*> registrars;
+		inline static std::set<IRegistrar*> registrars;
 		static void ResolveDanglingRegisters();
 
 		std::map<std::string, std::list<std::coroutine_handle<>>, std::less<>> registrationQueue;
@@ -50,6 +51,9 @@ namespace QuanFloq {
 		void Get( std::string_view name, std::shared_ptr<void>& value, bool await = true );
 		void Get( std::string_view name, std::vector<std::shared_ptr<void>>& value, bool await = true );
 	};
+	// endregion
+
+	// region Templates
 	// Cannot use concept requirements because it is used with incomplete types. Use static_assert instead.
 	/**
 	 * Basic Registrar template for searching non-owning objects
@@ -176,7 +180,9 @@ namespace QuanFloq {
 		void RepairOrder() override;
 		void ResolvePostRegister( std::string_view str ) override;
 	};
+	// endregion
 
+	// region Helpers
 	template<class T, template<class> class TRegistrar> requires std::derived_from<TRegistrar<T>, IRegistrar>
 	struct RegistrarAwaitGet;
 	struct IRegistrarAwaitGetRef;
@@ -247,6 +253,7 @@ namespace QuanFloq {
 			RegistrarAwaitGetBase {
 		std::shared_ptr<void> await_resume() const;
 	};
+	// endregion
 }
 
 #endif //QUANFLOQ_REGISTRARS_HPP

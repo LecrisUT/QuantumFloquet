@@ -10,7 +10,7 @@
 #include <fmt/format.h>
 
 
-TEST_CASE("Test Registration", "[Registrar]") {
+TEST_CASE("Test Registration", "[Registrar][Auto-Registration]") {
 	STATIC_REQUIRE(stdRegistered<A1>);
 	STATIC_REQUIRE(stdRegistered<B1>);
 	CHECK(A::registrar.Contains("A1"));

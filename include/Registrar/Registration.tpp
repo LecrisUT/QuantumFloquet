@@ -11,9 +11,8 @@
 
 using namespace QuanFloq;
 
-// region Constructor/Destructor
-// endregion
 
+// region Factory functions
 // region RefRegistration
 template<stdRegistrar T>
 RefRegistration RefRegistration::Create( T& staticItem ) {
@@ -47,7 +46,7 @@ PtrRegistration PtrRegistration::Create( SharedRegistrarRoot<Base>& registrar, A
 	return PtrRegistration(ptr);
 }
 // endregion
-
+// endregion
 
 
 #endif //QUANFLOQ_REGISTRATION_TPP

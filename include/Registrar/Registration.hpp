@@ -10,12 +10,13 @@
 #include <memory>
 
 namespace QuanFloq {
-	struct IRegistrar;
-
+	// region Bases
 	struct RegistrationBase {
 	protected:
 		RegistrationBase() = default;
 	};
+	// endregion
+	// region Implementations
 	struct RefRegistration :
 			RegistrationBase {
 		void* reference;
@@ -40,6 +41,7 @@ namespace QuanFloq {
 		requires std::derived_from<T, Base> && ctrArgs<T, Args...>
 		static PtrRegistration Create( SharedRegistrarRoot<Base>& registrar, Args&& ... args );
 	};
+	// endregion
 }
 
 #endif //QUANFLOQ_REGISTRATION_HPP
