@@ -85,15 +85,15 @@ namespace QuanFloq {
 	concept stdIRegistrar = std::derived_from<decltype(T::registrar), IRegistrar> && requires{
 		// Static registrar member is an IRegistrar and it has a member type to retrieve the template variable
 		typename decltype(T::registrar)::value_type;
-	};
-	template<class T, class Base = typename decltype(T::registrar)::value_type>
-	concept stdRegistrar = std::derived_from<T, Base> && stdIRegistrar<T> &&
-	                       std::derived_from<decltype(T::registrar), RefRegistrarRoot<Base>>;
-	template<class T, class Base = typename decltype(T::registrar)::value_type>
-	concept stdSharedRegistrar = std::derived_from<T, Base> && stdIRegistrar<T> &&
-	                             std::derived_from<decltype(T::registrar), SharedRegistrarRoot<Base>>;
-	template<class T, class Base = typename decltype(T::registrar)::value_type>
-	concept stdRefRegistrar = stdRegistrar<T, Base> && !stdSharedRegistrar<T, Base>;
+	} && std::derived_from<T, typename decltype(T::registrar)::value_type>;
+	template<class T>
+	concept stdRegistrar = stdIRegistrar<T> && std::derived_from<decltype(T::registrar),
+			RefRegistrarRoot<typename decltype(T::registrar)::value_type>>;
+	template<class T>
+	concept stdSharedRegistrar = stdIRegistrar<T> && std::derived_from<decltype(T::registrar),
+			SharedRegistrarRoot<typename decltype(T::registrar)::value_type>>;
+	template<class T>
+	concept stdRefRegistrar = stdRegistrar<T> && !stdSharedRegistrar<T>;
 
 	// Cannot use template parameter or derived typename to simplify the following
 	/**

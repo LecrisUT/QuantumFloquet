@@ -35,6 +35,8 @@ namespace QuanFloq {
 	}
 	template<class T>
 	void ReorderSet( T& set ) {
+		if (set.size() < 2)
+			return;
 		auto iter = set.begin();
 		while (iter != std::prev(set.end(), 1)) {
 			if (*iter >= *std::next(iter, 1)) {
@@ -94,18 +96,22 @@ SharedRegistrar<T, U>::SharedRegistrar( SharedRegistrarRoot<U>& root ) noexcept 
 	static_assert(std::derived_from<T, U>);
 }
 
-template<class T, class TRegistrar>
+template<class... Args>
+RegistrationTask::promise_type::promise_type( IRegistrar& registrar, std::string_view name, Args&& ... ):
+		registrar{registrar}, name{name} { }
+template<class TRegistrar, class... Args>
 RegistrationTask::promise_type::promise_type( TRegistrar& registrar,
-                                              std::string_view name, const T*& ):
+                                              std::string_view name, Args&& ... ):
 		registrar{registrar}, name{name} {
-	static_assert(strComparable<T>);
 	static_assert(std::derived_from<std::remove_reference_t<TRegistrar>, IRegistrar>);
 }
-template<class T, class TRegistrar>
-RegistrationTask::promise_type::promise_type( TRegistrar& registrar,
-                                              std::string_view name, std::shared_ptr<T>& ):
+template<class T, class... Args>
+RegistrationTask::promise_type::promise_type( T&&, IRegistrar& registrar, std::string_view name, Args&& ... ):
+		registrar{registrar}, name{name} { }
+template<class T, class TRegistrar, class... Args>
+RegistrationTask::promise_type::promise_type( T&&, TRegistrar& registrar,
+                                              std::string_view name, Args&& ... ):
 		registrar{registrar}, name{name} {
-	static_assert(strComparable<T>);
 	static_assert(std::derived_from<std::remove_reference_t<TRegistrar>, IRegistrar>);
 }
 template<class T, template<class> class TRegistrar>
@@ -128,8 +134,13 @@ bool RefRegistrarRoot<T>::Contains( std::string_view str ) const {
 	return Set.contains(str);
 }
 template<class T>
-const void* RefRegistrarRoot<T>::VoidRef( std::string_view str ) const {
-	return operator[](str);
+const IExposable* RefRegistrarRoot<T>::GetRef( std::string_view str ) const {
+	if constexpr (std::derived_from<T, IExposable>)
+		return operator[](str);
+	else {
+		assert(false);
+		return nullptr;
+	}
 }
 template<class T>
 bool RefRegistrarRoot<T>::TryRegister( const std::shared_ptr<IExposable>& ptr ) {
@@ -195,8 +206,13 @@ bool SharedRegistrarRoot<T>::Contains( std::string_view str ) const {
 	return Set.contains(str);
 }
 template<class T>
-std::shared_ptr<void> SharedRegistrarRoot<T>::VoidPtr( std::string_view str ) const {
-	return operator[](str);
+std::shared_ptr<IExposable> SharedRegistrarRoot<T>::GetPtr( std::string_view str ) const {
+	if constexpr (std::derived_from<T, IExposable>)
+		return operator[](str);
+	else {
+		assert(false);
+		return nullptr;
+	}
 }
 template<class T>
 bool SharedRegistrarRoot<T>::TryRegister( const std::shared_ptr<IExposable>& ptr ) {
@@ -267,8 +283,13 @@ bool ObjectRegistrar<T>::Contains( std::string_view str ) const {
 	return Set.contains(str);
 }
 template<class T>
-const void* ObjectRegistrar<T>::VoidRef( std::string_view str ) const {
-	return operator[](str);
+const IExposable* ObjectRegistrar<T>::GetRef( std::string_view str ) const {
+	if constexpr (std::derived_from<T, IExposable>)
+		return operator[](str);
+	else {
+		assert(false);
+		return nullptr;
+	}
 }
 template<class T>
 template<class... Args>

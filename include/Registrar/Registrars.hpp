@@ -36,20 +36,20 @@ namespace QuanFloq {
 		virtual ~IRegistrar();
 
 		virtual bool Contains( std::string_view str ) const = 0;
-		virtual const void* VoidRef( std::string_view str ) const = 0;
-		virtual std::shared_ptr<void> VoidPtr( std::string_view str ) const;
+		virtual const IExposable* GetRef( std::string_view str ) const = 0;
+		virtual std::shared_ptr<IExposable> GetPtr( std::string_view str ) const;
 		virtual bool TryRegister( const std::shared_ptr<IExposable>& ptr );
 		virtual bool Erase( std::string_view item ) = 0;
 		// Note: Cannot use unordered_map because rehashing before the name is changed does not change the ordering
 		virtual void RepairOrder() = 0;
 
 		virtual void ResolvePostRegister( std::string_view str );
-		RegistrationTask AwaitGet( std::string_view name, const void*& value );
-		RegistrationTask AwaitGet( std::string_view name, std::shared_ptr<void>& value );
-		void Get( std::string_view name, const void*& value, bool await = true );
-		void Get( std::string_view name, std::vector<const void*>& value, bool await = true );
-		void Get( std::string_view name, std::shared_ptr<void>& value, bool await = true );
-		void Get( std::string_view name, std::vector<std::shared_ptr<void>>& value, bool await = true );
+		RegistrationTask AwaitGet( std::string_view name, const IExposable*& value );
+		RegistrationTask AwaitGet( std::string_view name, std::shared_ptr<IExposable>& value );
+		void Get( std::string_view name, const IExposable*& value, bool await = true );
+		void Get( std::string_view name, std::vector<const IExposable*>& value, bool await = true );
+		void Get( std::string_view name, std::shared_ptr<IExposable>& value, bool await = true );
+		void Get( std::string_view name, std::vector<std::shared_ptr<IExposable>>& value, bool await = true );
 	};
 	// endregion
 
@@ -70,7 +70,7 @@ namespace QuanFloq {
 
 		RefRegistrarRoot() noexcept;
 		bool Contains( std::string_view str ) const override;
-		const void* VoidRef( std::string_view str ) const override;
+		const IExposable* GetRef( std::string_view str ) const override;
 		bool TryRegister( const std::shared_ptr<IExposable>& ptr ) override;
 		virtual bool Register( T& item );
 		virtual bool Erase( T& item );
@@ -98,7 +98,7 @@ namespace QuanFloq {
 		set_type Set;
 
 		bool Contains( std::string_view str ) const override;
-		std::shared_ptr<void> VoidPtr( std::string_view str ) const override;
+		std::shared_ptr<IExposable> GetPtr( std::string_view str ) const override;
 		bool TryRegister( const std::shared_ptr<IExposable>& ptr ) override;
 		virtual bool Register( std::shared_ptr<T> item );
 		virtual bool Erase( std::shared_ptr<T> item );
@@ -122,7 +122,7 @@ namespace QuanFloq {
 
 		ObjectRegistrar() noexcept;
 		bool Contains( std::string_view str ) const override;
-		const void* VoidRef( std::string_view str ) const override;
+		const IExposable* GetRef( std::string_view str ) const override;
 		template<class ...Args>
 		requires ctrArgs<T, Args...>
 		std::pair<typename std::set<T>::iterator, bool> Register( Args&& ... );
@@ -207,12 +207,15 @@ namespace QuanFloq {
 			IRegistrarAwaitGetRef await_transform( IRegistrarAwaitGetRef&& awaiter );
 			IRegistrarAwaitGetPtr await_transform( IRegistrarAwaitGetPtr&& awaiter );
 			// Specific overload constructors to ensure it is called by AwaitGet or similar syntax functions
-			promise_type( IRegistrar& registrar, std::string_view name, const void*& );
-			promise_type( IRegistrar& registrar, std::string_view name, std::shared_ptr<void>& );
-			template<class T, class TRegistrar>
-			promise_type( TRegistrar& registrar, std::string_view name, const T*& );
-			template<class T, class TRegistrar>
-			promise_type( TRegistrar& registrar, std::string_view name, std::shared_ptr<T>& );
+			template<class ...Args>
+			promise_type( IRegistrar& registrar, std::string_view name, Args&& ... );
+			template<class TRegistrar, class ...Args>
+			promise_type( TRegistrar& registrar, std::string_view name, Args&& ... );
+			// Additional overloaders for non-static function calls
+			template<class T, class ...Args>
+			promise_type( T&&, IRegistrar& registrar, std::string_view name, Args&& ... );
+			template<class T, class TRegistrar, class ...Args>
+			promise_type( T&&, TRegistrar& registrar, std::string_view name, Args&& ... );
 			std::coroutine_handle<promise_type> GetHandle();
 		};
 		std::coroutine_handle<promise_type> handle;
@@ -247,11 +250,11 @@ namespace QuanFloq {
 	};
 	struct IRegistrarAwaitGetRef :
 			RegistrarAwaitGetBase {
-		const void* await_resume() const;
+		const IExposable* await_resume() const;
 	};
 	struct IRegistrarAwaitGetPtr :
 			RegistrarAwaitGetBase {
-		std::shared_ptr<void> await_resume() const;
+		std::shared_ptr<IExposable> await_resume() const;
 	};
 	// endregion
 }

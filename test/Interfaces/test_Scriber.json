@@ -1,0 +1,51 @@
+{
+  "Type": "AType",
+  "Name": "A1",
+  "CItem": {
+    "Type": "CType",
+    "Pointer": "C1"
+  },
+  "CArray": [
+    {
+      "Type": "CType",
+      "Pointer": "C1"
+    }
+  ],
+  "DItem": "D1",
+  "DArray": [
+    "D1"
+  ],
+  "BItem": {
+    "Type": "BType",
+    "Name": "B1",
+    "CItem": {
+      "Type": "CType",
+      "Name": "C1"
+    }
+  },
+  "BArray": [
+    {
+      "Type": "BType",
+      "Name": "B2"
+    }
+  ],
+  "intVal": 10,
+  "intVec": [
+    -20
+  ],
+  "sizetVal": 30,
+  "sizetVec": [
+    40
+  ],
+  "floatVal": 3.40282347E+38,
+  "floatVec": [
+    5.5
+  ],
+  "doubleVal": 1.79769313486231570E+308,
+  "doubleVec": [
+    6.6
+  ],
+  "stringVec": [
+    "String"
+  ]
+}

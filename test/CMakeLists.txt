@@ -7,3 +7,4 @@ target_link_libraries(BaseTest INTERFACE
 		fmt::fmt Catch2::Catch2)
 
 add_subdirectory(Registrar)
+add_subdirectory(Interfaces)

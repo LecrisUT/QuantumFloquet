@@ -2,7 +2,7 @@
 // Created by lecris on 2021-11-29.
 //
 
-#include "Registrar/Registrars.hpp"
+#include "Registrar/Registrars.tpp"
 
 #include <cassert>
 
@@ -16,10 +16,10 @@ namespace QuanFloq {
 			registrar.AwaitGet(name, value);
 		} else {
 			assert(registrar.Contains(name));
-			if constexpr(std::same_as<U, const void*>)
-				value = registrar.VoidRef(name);
-			else if constexpr (std::same_as<U, std::shared_ptr<void>>)
-				value = registrar.VoidPtr(name);
+			if constexpr(std::same_as<U, const IExposable*>)
+				value = registrar.GetRef(name);
+			else if constexpr (std::same_as<U, std::shared_ptr<IExposable>>)
+				value = registrar.GetPtr(name);
 			else
 					static_assert(!std::same_as<U, U>,
 					              "Other implementation not supported");
@@ -32,10 +32,10 @@ namespace QuanFloq {
 			registrar.AwaitGet(name, value);
 		} else {
 			assert(registrar.Contains(name));
-			if constexpr(std::same_as<U, const void*>)
-				vector.push_back(registrar.VoidRef(name));
-			else if constexpr (std::same_as<U, std::shared_ptr<void>>)
-				vector.push_back(registrar.VoidPtr(name));
+			if constexpr(std::same_as<U, const IExposable*>)
+				vector.push_back(registrar.GetRef(name));
+			else if constexpr (std::same_as<U, std::shared_ptr<IExposable>>)
+				vector.push_back(registrar.GetPtr(name));
 			else
 					static_assert(!std::same_as<U, U>,
 					              "Other implementation not supported");
@@ -58,19 +58,13 @@ IRegistrar::~IRegistrar() {
 	registrars.erase(this);
 }
 IRegistrar::IRegistrar() noexcept {
-	// Initialization fiasco is avoided by the order in this file.
+	// Initialization fiasco is avoided using inline static initializers
 	registrars.insert(this);
 }
-RegistrationTask::promise_type::promise_type( IRegistrar& registrar,
-                                              std::string_view name, const void*& ) :
-		registrar{registrar}, name{name} { }
-RegistrationTask::promise_type::promise_type( IRegistrar& registrar,
-                                              std::string_view name, std::shared_ptr<void>& ) :
-		registrar{registrar}, name{name} { }
 // endregion
 
 // region Interfaces
-std::shared_ptr<void> IRegistrar::VoidPtr( std::string_view str ) const { return nullptr; }
+std::shared_ptr<IExposable> IRegistrar::GetPtr( std::string_view str ) const { return nullptr; }
 bool IRegistrar::TryRegister( const std::shared_ptr<IExposable>& ptr ) { return false; }
 // endregion
 
@@ -86,23 +80,23 @@ IRegistrarAwaitGetPtr RegistrationTask::promise_type::await_transform( IRegistra
 	return output;
 }
 
-void IRegistrar::Get( std::string_view name, const void*& value, bool await ) {
+void IRegistrar::Get( std::string_view name, const IExposable*& value, bool await ) {
 	AwaitGetHelper(*this, name, value, await);
 }
-void IRegistrar::Get( std::string_view name, std::vector<const void*>& value, bool await ) {
+void IRegistrar::Get( std::string_view name, std::vector<const IExposable*>& value, bool await ) {
 	AwaitGetHelper(*this, name, value, await);
 }
-void IRegistrar::Get( std::string_view name, std::shared_ptr<void>& value, bool await ) {
+void IRegistrar::Get( std::string_view name, std::shared_ptr<IExposable>& value, bool await ) {
 	AwaitGetHelper(*this, name, value, await);
 }
-void IRegistrar::Get( std::string_view name, std::vector<std::shared_ptr<void>>& value, bool await ) {
+void IRegistrar::Get( std::string_view name, std::vector<std::shared_ptr<IExposable>>& value, bool await ) {
 	AwaitGetHelper(*this, name, value, await);
 }
-RegistrationTask IRegistrar::AwaitGet( std::string_view, const void*& value ) {
+RegistrationTask IRegistrar::AwaitGet( std::string_view, const IExposable*& value ) {
 	value = co_await IRegistrarAwaitGetRef();
 	assert(value != nullptr);
 }
-RegistrationTask IRegistrar::AwaitGet( std::string_view, std::shared_ptr<void>& value ) {
+RegistrationTask IRegistrar::AwaitGet( std::string_view, std::shared_ptr<IExposable>& value ) {
 	value = co_await IRegistrarAwaitGetPtr();
 	assert(value != nullptr);
 }
@@ -158,14 +152,14 @@ bool RegistrarAwaitGetBase::await_suspend( RegistrationHandle h ) const {
 	// If Registrar does not contain the required object, continue to co_await
 	return !promise->registrar.Contains(promise->name);
 }
-const void* IRegistrarAwaitGetRef::await_resume() const {
+const IExposable* IRegistrarAwaitGetRef::await_resume() const {
 	// In the end return the requested object to the caller of co_await
 	assert(promise->registrar.Contains(promise->name));
-	return promise->registrar.VoidRef(promise->name);
+	return promise->registrar.GetRef(promise->name);
 }
-std::shared_ptr<void> IRegistrarAwaitGetPtr::await_resume() const {
+std::shared_ptr<IExposable> IRegistrarAwaitGetPtr::await_resume() const {
 	// In the end return the requested object to the caller of co_await
 	assert(promise->registrar.Contains(promise->name));
-	return promise->registrar.VoidPtr(promise->name);
+	return promise->registrar.GetPtr(promise->name);
 }
 // endregion

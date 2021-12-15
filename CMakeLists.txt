@@ -19,6 +19,9 @@ CPMAddPackage(NAME fmt
 CPMAddPackage(NAME json
 		VERSION 3.10.4
 		GITHUB_REPOSITORY nlohmann/json)
+CPMAddPackage(NAME scn
+		VERSION 0.4
+		GITHUB_REPOSITORY eliaskosunen/scnlib)
 
 ## Base target for include and other basic target
 add_library(Base INTERFACE)
