@@ -57,7 +57,7 @@ namespace QuanFloq {
 		map_type map{};
 		set_type set{};
 		std::list<IQueue*> queues{};
-		std::set<std::string> nameSet{};
+		std::set<std::string, std::less<>> nameSet{};
 
 		bool Contains( std::string_view str ) const override;
 		// Already included in the template
@@ -69,7 +69,7 @@ namespace QuanFloq {
 
 		virtual std::pair<typename set_type::iterator, bool> Register( value_type& item );
 		virtual bool RegisterName( std::string_view name, value_type& item );
-		virtual bool RegisterName( std::string&& name, value_type& item );
+		bool RegisterName( std::string&& name, value_type& item );
 		virtual bool Erase( value_type& item );
 		bool Erase( std::string_view item ) override;
 
@@ -110,9 +110,10 @@ namespace QuanFloq {
 					registrar{registrar} {
 				registrar.queues.push_back(this);
 			}
-			~IQueue() {
-				registrar.queues.remove(this);
-			}
+			// Cannot use this destructor because order is not guaranteed
+//			~IQueue() {
+//				registrar.queues.remove(this);
+//			}
 			virtual void Resolve( const value_type& item ) = 0;
 		};
 	};
@@ -128,6 +129,7 @@ namespace QuanFloq {
 		using base_type = U;
 		using base = RefRegistrarRoot<T>;
 		using typename base::value_type;
+		using base::RegisterName;
 
 		RefRegistrarRoot<U>& Root;
 
@@ -142,7 +144,6 @@ namespace QuanFloq {
 
 		std::pair<typename base::set_type::iterator, bool> Register( value_type& item ) override;
 		bool RegisterName( std::string_view name, value_type& item ) override;
-		bool RegisterName( std::string&& name, value_type& item ) override;
 		bool Erase( value_type& item ) override;
 		bool Erase( std::string_view item ) override;
 		void ResolvePostRegister( std::string_view str ) override;

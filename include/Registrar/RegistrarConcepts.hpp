@@ -24,6 +24,7 @@ namespace QuanFloq {
 	struct RegistrationBase;
 	template<class>
 	class Factory;
+	struct TypeInfo;
 
 	struct ResolveFailed : std::exception {
 		std::string message;
@@ -39,8 +40,8 @@ namespace QuanFloq {
 	template<class T>
 	concept stdRegistered = std::derived_from<decltype(T::registration), RegistrationBase>;
 	// TODO: Cannot detect if proper type is registered without constexpr magic
-//	template<class T>
-//	concept stdTypeRegistered = std::derived_from<decltype(T::typeRegistration), TypeRegistration>;
+	template<class T>
+	concept stdTypeRegistered = std::same_as<decltype(T::typeInfo), const TypeInfo&>;
 	template<class T>
 	concept stdFactory = std::derived_from<decltype(T::factory), Factory<T>>;
 

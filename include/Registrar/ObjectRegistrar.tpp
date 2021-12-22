@@ -18,36 +18,32 @@ struct ObjectRegistrarRoot<T>::Queue :
 	using base = ObjectRegistrarRoot<T>::IQueue;
 	using base::base;
 	void Resolve( const value_type& item ) override {
-		assert(item);
 		if constexpr (TransparentEqualKey<Key, T>) {
 			auto& operand = this->registrar.operators.equal;
-			auto mapCopy = map;
+			auto mapCopy = this->map;
 			for (auto&[key, value]: mapCopy)
-				if (operand(key, *item)) {
+				if (operand(key, item)) {
 					for (auto& handle: value)
 						handle.resume();
 					if (value.empty())
-						map.erase(key);
+						this->map.erase(key);
 				}
 		} else {
 			auto& operand = this->registrar.operators.less;
-			auto mapCopy = map;
+			auto mapCopy = this->map;
 			for (auto&[key, value]: mapCopy)
-				if (!(operand(key, *item) || operand(*item, key))) {
+				if (!(operand(key, item) || operand(item, key))) {
 					for (auto& handle: value)
 						handle.resume();
 					if (value.empty())
-						map.erase(key);
+						this->map.erase(key);
 				}
 		}
 	}
 };
 template<class T>
 template<class Key> requires TransparentEqualKey<Key, T> || TransparentLessKey<Key, T>
-struct ObjectRegistrarRoot<T>::RegistrationTask<Key>::promise_type : Internal::RegistrarKeyHolder<Key> {
-	using base = Internal::RegistrarKeyHolder<Key>;
-	ObjectRegistrarRoot<T>& registrar;
-
+struct ObjectRegistrarRoot<T>::RegistrationTask<Key>::promise_type {
 	task_type get_return_object() {
 		return {.handle = GetHandle()};
 	}
@@ -56,51 +52,40 @@ struct ObjectRegistrarRoot<T>::RegistrationTask<Key>::promise_type : Internal::R
 	void return_void() { }
 	void unhandled_exception() { }
 	awaiter_type await_transform( awaiter_type&& awaiter ) {
-		auto output = awaiter;
+		auto output = std::move(awaiter);
 		output.promise = this;
 		return output;
 	}
-	// Specific overload constructors to ensure it is called by AwaitGet or similar syntax functions
-	template<class ...Args>
-	promise_type( ObjectRegistrarRoot<T>& registrar, const Key& key, Args&& ... ):
-			base(key), registrar{registrar} { };
-	template<class ...Args>
-	requires std::move_constructible<Key>
-	promise_type( ObjectRegistrarRoot<T>& registrar, Key&& key, Args&& ... ):
-			base(std::move(key)), registrar{registrar} { };
-	// Additional overloaders for non-static function calls
-	template<class U, class ...Args>
-	promise_type( U&&, ObjectRegistrarRoot<T>& registrar, const Key& key, Args&& ... ):
-			base(key), registrar{registrar} { };
-	template<class U, class ...Args>
-	requires std::move_constructible<Key>
-	promise_type( U&&, ObjectRegistrarRoot<T>& registrar, Key&& key, Args&& ... ):
-			base(std::move(key)), registrar{registrar} { };
 	std::coroutine_handle<promise_type> GetHandle() {
 		return std::coroutine_handle<promise_type>::from_promise(*this);
 	}
 };
 template<class T>
 template<class Key> requires TransparentEqualKey<Key, T> || TransparentLessKey<Key, T>
-struct ObjectRegistrarRoot<T>::Awaiter {
+struct ObjectRegistrarRoot<T>::Awaiter : Internal::RegistrarKeyHolder<Key> {
+	using base = Internal::RegistrarKeyHolder<Key>;
 	using value_type = typename ObjectRegistrarRoot<T>::value_type;
 	using task_type = typename ObjectRegistrarRoot<T>::task_type<Key>;
 	using awaiter_type = typename ObjectRegistrarRoot<T>::awaiter_type<Key>;
 	using promise_type = typename ObjectRegistrarRoot<T>::promise_type<Key>;
+	ObjectRegistrarRoot<T>& registrar;
 	promise_type* promise;
+	Awaiter( ObjectRegistrarRoot<T>& registrar, const Key& key ) : base(key), registrar{registrar} { }
+	Awaiter( ObjectRegistrarRoot<T>& registrar, Key&& key ) : base(std::forward<Key>(key)), registrar{registrar} { }
 	bool await_ready() const {
-		if (promise->registrar.Contains(promise->keyRef))
+		if (registrar.Contains(this->keyRef))
 			return true;
-		promise->registrar.AwaitFor(promise->keyRef, promise->GetHandle());
+		registrar.AwaitFor(this->keyRef, promise->GetHandle());
+		return false;
 	}
-	bool await_suspend( std::coroutine_handle<IRegistrationTask::promise_type> h ) const {
+	bool await_suspend( std::coroutine_handle<promise_type> h ) const {
 		// If Registrar does not contain the required object, continue to co_await
-		return !promise->registrar.Contains(promise->keyRef);
+		return !registrar.Contains(this->keyRef);
 	}
 	const value_type& await_resume() const {
 		// In the end return the requested object to the caller of co_await
-		assert(promise->registrar.Contains(promise->keyRef));
-		return promise->registrar[promise->keyRef];
+		assert(registrar.Contains(this->keyRef));
+		return registrar[this->keyRef];
 	}
 };
 template<class T>
@@ -244,6 +229,16 @@ bool ObjectRegistrarRoot<T>::RegisterName( std::string_view name, const value_ty
 	if (map.contains(name))
 		return false;
 	map.insert_or_assign(name, std::ref(operator[](item)));
+	// Delete any leftover copies
+	for (auto iter = map.begin(); iter != map.end();) {
+		if (iter->second.get() == item && iter->first != name) {
+			auto nameIter = nameSet.find(iter->first);
+			if (nameIter != nameSet.end())
+				nameSet.erase(nameIter);
+			iter = map.erase(iter);
+		} else
+			iter++;
+	}
 	return true;
 }
 template<class T>
@@ -252,8 +247,7 @@ bool ObjectRegistrarRoot<T>::RegisterName( std::string&& name, const value_type&
 		return false;
 	auto res = nameSet.insert(name);
 	assert(res.second);
-	map.insert_or_assign(*res.first, std::ref(operator[](item)));
-	return true;
+	return RegisterName(*res.first, item);
 }
 template<class T>
 bool ObjectRegistrarRoot<T>::Erase( const value_type& item ) {
@@ -309,14 +303,14 @@ template<class Key>
 requires TransparentEqualKey<Key, T> || TransparentLessKey<Key, T>
 typename ObjectRegistrarRoot<T>::template task_type<Key>
 ObjectRegistrarRoot<T>::AwaitGet( const Key& key, value_type*& value ) {
-	value = &co_await Awaiter();
+	value = &co_await Awaiter(*this, std::forward<Key>(key));
 }
 template<class T>
 template<class Key>
 requires (TransparentEqualKey<Key, T> || TransparentLessKey<Key, T>) && std::move_constructible<Key>
 typename ObjectRegistrarRoot<T>::template task_type<Key>
 ObjectRegistrarRoot<T>::AwaitGet( Key&& key, value_type*& value ) {
-	value = &co_await Awaiter();
+	value = &co_await Awaiter(*this, std::forward<Key>(key));
 }
 template<class T>
 IRegistrationTask ObjectRegistrarRoot<T>::AwaitGet( std::string_view name, value_type*& value ) {
@@ -382,20 +376,6 @@ bool ObjectRegistrar<T, U>::RegisterName( std::string_view name, const value_typ
 	bool res2 = Root.RegisterName(name, item);
 	if (!res2) {
 		throw NotRegistered(*this, name);
-	}
-	return true;
-}
-template<class T, class U>
-bool ObjectRegistrar<T, U>::RegisterName( std::string&& name, const value_type& item ) {
-	auto nameCopy = std::string(std::string_view(name));
-	bool res = RefRegistrarRoot<T>::RegisterName(std::move(name), item);
-	if (!res)
-		return false;
-	auto namePtr = this->nameSet.find(nameCopy);
-	assert(namePtr != this->nameSet.end());
-	bool res2 = Root.RegisterName(*namePtr, item);
-	if (!res2) {
-		throw NotRegistered(*this, *namePtr);
 	}
 	return true;
 }

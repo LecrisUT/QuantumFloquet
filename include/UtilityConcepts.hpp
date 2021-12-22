@@ -9,16 +9,15 @@
 #include <utility>
 
 namespace QuanFloq {
-	template<class T, class ...Args>
-	concept publicCtrArgs = requires( Args&& ... args ) {
-		T(std::forward<Args>(args)...);
+	// Checker for specialization https://stackoverflow.com/a/31763111
+	template<class T, template<class...> class Template>
+	struct Is_specialization : std::false_type {
 	};
-	template<class T, class ...Args>
-	concept createCtrArgs = requires( Args&& ... args ) {
-		T::Create(std::forward<Args>(args)...);
+	template<template<class...> class Template, class... Args>
+	struct Is_specialization<Template<Args...>, Template> : std::true_type {
 	};
-	template<class T, class ...Args>
-	concept ctrArgs = publicCtrArgs<T, Args...> || createCtrArgs<T, Args...>;
+	template<class This, template<class...> class Template>
+	concept SpecializationOf = Is_specialization<This, Template>{};
 }
 
 
