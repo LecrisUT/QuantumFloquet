@@ -12,3 +12,6 @@ RefRegistration::RefRegistration( void* ref ) :
 PtrRegistration::PtrRegistration( std::shared_ptr<void> ptr ) :
 		pointer{std::move(ptr)} { }
 // endregion
+const char* RegistrationException::what() const noexcept {
+	return "Failed to register item";
+}

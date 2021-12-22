@@ -2,7 +2,7 @@
 // Created by lecris on 2021-11-29.
 //
 
-#include "Registrar/Registrars.tpp"
+#include "Registrar/IRegistrar.hpp"
 
 #include <cassert>
 
@@ -43,38 +43,64 @@ namespace QuanFloq {
 	}
 }
 // endregion
+// region Exceptions
+RegistrarError::RegistrarError( const IRegistrar& registrar ) : registrar{registrar} {
+
+}
+NotRegistered::NotRegistered( const IRegistrar& registrar, std::string_view item ) :
+		RegistrarError(registrar), out_of_range(message) {
+	message = "Item [" + std::string(item) + "] not registered in " + typeid(registrar).name();
+}
+NotImplemented::NotImplemented( const IRegistrar& registrar, std::string_view operation ) :
+		RegistrarError(registrar) {
+	message = "Operation [" + std::string(operation) + "] not implemented in " + typeid(registrar).name();
+}
+const char* NotImplemented::what() const noexcept {
+	return message.c_str();
+}
+const char* NotRegistered::what() const noexcept {
+	return message.c_str();
+}
 
 // region Static function definitions
 void IRegistrar::ResolveDanglingRegisters() {
 	for (auto& registrar: registrars)
-		for (auto& items: registrar->registrationQueue)
+		for (auto& items: registrar->registrationQueue) {
+			if (!registrar->Contains(items.first))
+				continue;
 			for (auto& handle: items.second)
 				handle.resume();
+		}
 }
+// endregion
 // endregion
 
 // region Constructor/Destructor
 IRegistrar::~IRegistrar() {
-	registrars.erase(this);
+	registrars.remove(this);
 }
 IRegistrar::IRegistrar() noexcept {
 	// Initialization fiasco is avoided using inline static initializers
-	registrars.insert(this);
+	registrars.push_back(this);
 }
 // endregion
 
 // region Interfaces
-std::shared_ptr<IExposable> IRegistrar::GetPtr( std::string_view str ) const { return nullptr; }
-bool IRegistrar::TryRegister( const std::shared_ptr<IExposable>& ptr ) { return false; }
+std::shared_ptr<IExposable> IRegistrar::GetPtr( std::string_view str ) const {
+	throw NotImplemented(*this, "GetPtr");
+}
+bool IRegistrar::TryRegister( std::shared_ptr<IExposable> ptr ) {
+	throw NotImplemented(*this, "TryRegister");
+}
 // endregion
 
 // region co_await functions
-IRegistrarAwaitGetRef RegistrationTask::promise_type::await_transform( IRegistrarAwaitGetRef&& awaiter ) {
+IRegistrarAwaitGetRef IRegistrationTask::promise_type::await_transform( IRegistrarAwaitGetRef&& awaiter ) {
 	auto output = awaiter;
 	output.promise = this;
 	return output;
 }
-IRegistrarAwaitGetPtr RegistrationTask::promise_type::await_transform( IRegistrarAwaitGetPtr&& awaiter ) {
+IRegistrarAwaitGetPtr IRegistrationTask::promise_type::await_transform( IRegistrarAwaitGetPtr&& awaiter ) {
 	auto output = awaiter;
 	output.promise = this;
 	return output;
@@ -92,11 +118,11 @@ void IRegistrar::Get( std::string_view name, std::shared_ptr<IExposable>& value,
 void IRegistrar::Get( std::string_view name, std::vector<std::shared_ptr<IExposable>>& value, bool await ) {
 	AwaitGetHelper(*this, name, value, await);
 }
-RegistrationTask IRegistrar::AwaitGet( std::string_view, const IExposable*& value ) {
+IRegistrationTask IRegistrar::AwaitGet( std::string_view, const IExposable*& value ) {
 	value = co_await IRegistrarAwaitGetRef();
 	assert(value != nullptr);
 }
-RegistrationTask IRegistrar::AwaitGet( std::string_view, std::shared_ptr<IExposable>& value ) {
+IRegistrationTask IRegistrar::AwaitGet( std::string_view, std::shared_ptr<IExposable>& value ) {
 	value = co_await IRegistrarAwaitGetPtr();
 	assert(value != nullptr);
 }
@@ -105,8 +131,10 @@ void IRegistrar::ResolvePostRegister( std::string_view str ) {
 	if (queue == registrationQueue.end())
 		// No queue was formed
 		return;
-	// Need to rehash to correctly check contains
-	RepairOrder();
+	// Calling handle.resume() does not call awaiter.await_suspend.
+	// Making sure the item is registered
+	if (!Contains(str))
+		return;
 	// Resume registration of all queuing items
 	// Create a queue copy because handles can get automatically deleted
 	auto queueCopy = queue->second;
@@ -116,26 +144,26 @@ void IRegistrar::ResolvePostRegister( std::string_view str ) {
 // endregion
 
 // region co_await helper class
-std::suspend_never RegistrationTask::promise_type::initial_suspend() {
+std::suspend_never IRegistrationTask::promise_type::initial_suspend() {
 	return {};
 }
-std::suspend_never RegistrationTask::promise_type::final_suspend() noexcept {
+std::suspend_never IRegistrationTask::promise_type::final_suspend() noexcept {
 	auto queue = registrar.registrationQueue.find(name);
 	if (queue != registrar.registrationQueue.end()) {
 		queue->second.remove(GetHandle());
 	}
 	return {};
 }
-void RegistrationTask::promise_type::return_void() { }
-void RegistrationTask::promise_type::unhandled_exception() { }
-RegistrationTask::operator std::coroutine_handle<promise_type>() const { return handle; }
-RegistrationTask::operator std::coroutine_handle<>() const { return handle; }
-RegistrationTask RegistrationTask::promise_type::get_return_object() {
+void IRegistrationTask::promise_type::return_void() { }
+void IRegistrationTask::promise_type::unhandled_exception() { }
+IRegistrationTask::operator std::coroutine_handle<promise_type>() const { return handle; }
+IRegistrationTask::operator std::coroutine_handle<>() const { return handle; }
+IRegistrationTask IRegistrationTask::promise_type::get_return_object() {
 	return {
 			.handle = GetHandle()
 	};
 }
-RegistrationHandle RegistrationTask::promise_type::GetHandle() {
+RegistrationHandle IRegistrationTask::promise_type::GetHandle() {
 	return RegistrationHandle::from_promise(*this);
 }
 

@@ -22,7 +22,7 @@ namespace QuanFloq {
 		std::string Name;
 	public:
 		static SharedRegistrarRoot<A> registrar;
-		static ObjectRegistrar<A> ObjRegistrar;
+		static ObjectRegistrarRoot<A> ObjRegistrar;
 		A() = default;
 		explicit A( std::string_view name ) :
 				Name{name} { }
@@ -77,7 +77,7 @@ namespace QuanFloq {
 		std::shared_ptr<A> ptr;
 	};
 	SharedRegistrarRoot<A> A::registrar = SharedRegistrarRoot<A>();
-	ObjectRegistrar<A> A::ObjRegistrar = ObjectRegistrar<A>();
+	ObjectRegistrarRoot<A> A::ObjRegistrar = ObjectRegistrarRoot<A>();
 	SharedRegistrar<B, A> B::registrar = SharedRegistrar<B, A>();
 	SharedRegistrar<B2, A> B2::registrar = SharedRegistrar<B2, A>();
 	RefRegistrarRoot<C> C::registrar = RefRegistrarRoot<C>();
@@ -92,7 +92,7 @@ TEST_CASE("Test Registrars", "[Registrar]") {
 			STATIC_REQUIRE(stdRefRegistrar<CA>);
 			STATIC_REQUIRE(stdRegistrar<C>);
 			STATIC_REQUIRE_FALSE(stdSharedRegistrar<C>);
-			CHECK(C::registrar.Set.empty());
+			CHECK(C::registrar.set.empty());
 			C1 c1;
 			C2 c2;
 			C3A c3a;
@@ -112,7 +112,7 @@ TEST_CASE("Test Registrars", "[Registrar]") {
 			STATIC_REQUIRE(stdSharedRegistrar<B>);
 			STATIC_REQUIRE(stdRegistrar<A>);
 			STATIC_REQUIRE_FALSE(stdRefRegistrar<A>);
-			CHECK(A::registrar.Set.empty());
+			CHECK(A::registrar.set.empty());
 			auto a = std::make_shared<A>("A");
 			auto b = std::make_shared<B>("B");
 			auto b2 = std::make_shared<B2>("B2");
@@ -125,7 +125,7 @@ TEST_CASE("Test Registrars", "[Registrar]") {
 			CHECK(B::registrar.Contains("B"));
 			CHECK(!B::registrar.Contains("B2"));
 		} SECTION("Object Registrar") {
-			CHECK(A::ObjRegistrar.Set.empty());
+			CHECK(A::ObjRegistrar.set.empty());
 			REQUIRE_NOTHROW(A::ObjRegistrar.Register("A1"));
 			REQUIRE_NOTHROW(A::ObjRegistrar.Register("A2"));
 			CHECK(A::ObjRegistrar.Contains("A1"));
@@ -133,7 +133,7 @@ TEST_CASE("Test Registrars", "[Registrar]") {
 	} SECTION("Co_awaits") {
 		auto a = std::make_shared<A>();
 		REQUIRE_NOTHROW(A::registrar.Register(a));
-		CHECK(A::registrar.Set.contains(a));
+		CHECK(A::registrar.set.contains(a));
 		D d;
 		REQUIRE_NOTHROW(A::registrar.Get("AA", d.ptr, true));
 		CHECK(d.ptr == nullptr);
@@ -141,7 +141,13 @@ TEST_CASE("Test Registrars", "[Registrar]") {
 		a->SetName("AA");
 		CHECK(!A::registrar.Contains("AA"));
 		CHECK(d.ptr == nullptr);
-		REQUIRE_NOTHROW(A::registrar.ResolvePostRegister("AA"));
+		CHECK_NOTHROW(A::registrar.ResolvePostRegister("AA"));
+		CHECK(!A::registrar.Contains("AA"));
+		CHECK(d.ptr == nullptr);
+		CHECK(A::registrar.RegisterName(a->GetName(), a));
+		CHECK(A::registrar.Contains("AA"));
+		CHECK(d.ptr == nullptr);
+		CHECK_NOTHROW(A::registrar.ResolvePostRegister("AA"));
 		CHECK(A::registrar.Contains("AA"));
 		CHECK(d.ptr == a);
 	}

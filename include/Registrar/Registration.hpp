@@ -7,9 +7,16 @@
 
 #include "UtilityConcepts.hpp"
 #include "RegistrarConcepts.hpp"
+#include "Registrars.hpp"
 #include <memory>
+#include <exception>
 
 namespace QuanFloq {
+	// region Framework types
+	struct RegistrationException : std::exception {
+		const char* what() const noexcept override;
+	};
+	// endregion
 	// region Bases
 	struct RegistrationBase {
 	protected:
@@ -24,9 +31,19 @@ namespace QuanFloq {
 		explicit RefRegistration( void* ref );
 	public:
 		template<stdRegistrar T>
-		static RefRegistration Create( T& staticItem );
+		static RefRegistration Create( T& staticItem ) {
+			bool res = T::registrar.Register(staticItem).second;
+			if (!res)
+				throw RegistrationException();
+			return RefRegistration(&staticItem);
+		}
 		template<class Base, std::derived_from<Base> T>
-		static RefRegistration Create( RefRegistrarRoot<Base>& registrar, T& staticItem );
+		static RefRegistration Create( RefRegistrarRoot<Base>& registrar, T& staticItem ) {
+			bool res = registrar.Register(staticItem).second;
+			if (!res)
+				throw RegistrationException();
+			return RefRegistration(&staticItem);
+		}
 	};
 	struct PtrRegistration :
 			RegistrationBase {
@@ -35,11 +52,23 @@ namespace QuanFloq {
 		explicit PtrRegistration( std::shared_ptr<void> ptr );
 	public:
 		template<stdSharedRegistrar T, class ...Args>
-		requires ctrArgs<T, Args...>
-		static PtrRegistration Create( Args&& ... args );
+		requires std::constructible_from<T, Args...>
+		static PtrRegistration Create( Args&& ... args ) {
+			auto ptr = std::make_shared<T>(std::forward<Args>(args)...);
+			bool res = T::registrar.Register(ptr).second;
+			if (!res)
+				throw RegistrationException();
+			return PtrRegistration(ptr);
+		}
 		template<class T, class Base, class ...Args>
-		requires std::derived_from<T, Base> && ctrArgs<T, Args...>
-		static PtrRegistration Create( SharedRegistrarRoot<Base>& registrar, Args&& ... args );
+		requires std::derived_from<T, Base> && std::constructible_from<T, Args...>
+		static PtrRegistration Create( SharedRegistrarRoot<Base>& registrar, Args&& ... args ) {
+			auto ptr = std::make_shared<T>(std::forward<Args>(args)...);
+			bool res = registrar.Register(ptr).second;
+			if (!res)
+				throw RegistrationException();
+			return PtrRegistration(ptr);
+		}
 	};
 	// endregion
 }

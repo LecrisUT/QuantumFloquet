@@ -9,6 +9,8 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <exception>
+#include <typeindex>
 
 namespace QuanFloq {
 	// Forward declarations
@@ -17,17 +19,28 @@ namespace QuanFloq {
 	struct RefRegistrarRoot;
 	template<class>
 	struct SharedRegistrarRoot;
+	template<class>
+	struct ObjectRegistrarRoot;
 	struct RegistrationBase;
-	struct TypeRegistration;
 	template<class>
 	class Factory;
 
+	struct ResolveFailed : std::exception {
+		std::string message;
+		std::type_index type;
+		explicit ResolveFailed( std::string_view component, const std::type_index& type = typeid(void)) : type(type) {
+			message = "Could not resolve " + std::string(component) + " for " + type.name();
+		}
+		const char* what() const noexcept override {
+			return message.c_str();
+		}
+	};
 
 	template<class T>
 	concept stdRegistered = std::derived_from<decltype(T::registration), RegistrationBase>;
 	// TODO: Cannot detect if proper type is registered without constexpr magic
-	template<class T>
-	concept stdTypeRegistered = std::derived_from<decltype(T::typeRegistration), TypeRegistration>;
+//	template<class T>
+//	concept stdTypeRegistered = std::derived_from<decltype(T::typeRegistration), TypeRegistration>;
 	template<class T>
 	concept stdFactory = std::derived_from<decltype(T::factory), Factory<T>>;
 
@@ -87,13 +100,16 @@ namespace QuanFloq {
 		typename decltype(T::registrar)::value_type;
 	} && std::derived_from<T, typename decltype(T::registrar)::value_type>;
 	template<class T>
-	concept stdRegistrar = stdIRegistrar<T> && std::derived_from<decltype(T::registrar),
-			RefRegistrarRoot<typename decltype(T::registrar)::value_type>>;
-	template<class T>
 	concept stdSharedRegistrar = stdIRegistrar<T> && std::derived_from<decltype(T::registrar),
 			SharedRegistrarRoot<typename decltype(T::registrar)::value_type>>;
 	template<class T>
-	concept stdRefRegistrar = stdRegistrar<T> && !stdSharedRegistrar<T>;
+	concept stdRefRegistrar = stdIRegistrar<T> && std::derived_from<decltype(T::registrar),
+			RefRegistrarRoot<typename decltype(T::registrar)::value_type>>;
+	template<class T>
+	concept stdObjRegistrar = stdIRegistrar<T> && std::derived_from<decltype(T::registrar),
+			ObjectRegistrarRoot<typename decltype(T::registrar)::value_type>>;
+	template<class T>
+	concept stdRegistrar = stdRefRegistrar<T> || stdSharedRegistrar<T> || stdObjRegistrar<T>;
 
 	// Cannot use template parameter or derived typename to simplify the following
 	/**
@@ -164,135 +180,179 @@ namespace QuanFloq {
 	bool operator==( const std::reference_wrapper<T>& t1, std::string_view t2 ) {
 		return t1.get() == t2;
 	}
-	// TODO: Custom hash redefinition because specialization fails
-	template<QuanFloq::stdNamed T>
-	struct hash : std::hash<std::string_view> {
-		using is_transparent = void;
-		using std::hash<std::string_view>::operator();
-		size_t operator()( const std::shared_ptr<T>& val ) const noexcept {
-			if (val == nullptr)
-				return operator()("");
-			return operator()(val->GetName());
+
+	template<class T>
+	concept Hashable = requires( const T& a ) {
+		{ std::hash<T>{}(a) } -> std::convertible_to<std::size_t>;
+	};
+
+	template<class T>
+	struct DefaultRegistrarOperators {
+		using less_type = std::less<T>;
+		using equal_Type = std::equal_to<T>;
+		using hash_type = std::false_type;
+		const less_type less{};
+		const equal_Type equal{};
+	};
+	template<Hashable T>
+	struct DefaultRegistrarOperators<T> {
+		using less_type = std::less<T>;
+		using equal_Type = std::equal_to<T>;
+		using hash_type = std::hash<T>;
+		const less_type less{};
+		const equal_Type equal{};
+		const hash_type hash{};
+	};
+	template<class T>
+	struct RegistrarOperators : DefaultRegistrarOperators<T> {
+	};
+
+	template<class T>
+	struct BaseResolver {
+		static std::string_view Name( const T& item ) {
+			throw ResolveFailed("Resolve.Name", typeid(T));
 		}
 	};
+	template<class T>
+	struct Resolver;
+	template<stdNamed T>
+	struct Resolver<T> : BaseResolver<T> {
+		using base = BaseResolver<T>;
+		static std::string_view Name( const T& item ) noexcept {
+			return item.GetName();
+		}
+	};
+	template<class T>
+	concept NameResolvable = requires( const T& item ){
+		{ Resolver<T>::Name(item) } -> std::convertible_to<std::string_view>;
+	};
+	template<class Key, class T>
+	concept TransparentLessKey = std::same_as<Key, T> ||
+	                             requires( const std::less<T>& comparator, const Key& key, const T& item ){
+		                             typename std::less<T>::is_transparent;
+		                             comparator(key, item);
+		                             comparator(item, key);
+	                             };
+	template<class Key, class T>
+	concept TransparentEqualKey = std::same_as<Key, T> ||
+	                              requires( const std::equal_to<T>& comparator, const Key& key, const T& item ){
+		                              typename std::equal_to<T>::is_transparent;
+		                              comparator(key, item);
+		                              comparator(item, key);
+	                              };
+	template<class Key, class T>
+	concept TransparentKey = std::same_as<Key, T> ||
+	                         (TransparentLessKey<Key, T> && TransparentEqualKey<Key, T> &&
+	                          requires( const std::hash<T>& hasher, const Key& key ){
+		                          typename std::hash<T>::is_transparent;
+		                          hasher(key);
+	                          });
 }
-template<QuanFloq::stdNamed T>
-struct std::hash<T> : std::hash<std::string_view> {
+template<class T>
+struct std::less<std::reference_wrapper<T>>
+		: std::less<T&>, std::less<T*> {
 	using is_transparent = void;
-	using std::hash<std::string_view>::operator();
-	size_t operator()( const T& val ) const noexcept {
-		return operator()(val.GetName());
-	}
-};
-template<QuanFloq::stdNamed T>
-struct std::hash<std::reference_wrapper<T>> : std::hash<std::string_view> {
-	using is_transparent = void;
-	using std::hash<std::string_view>::operator();
-	size_t operator()( const std::reference_wrapper<T>& val ) const noexcept {
-		return operator()(val.get().GetName());
-	}
-};
-
-// TODO: This specialization fails
-//template<QuanFloq::stdNamed T>
-//struct std::hash<std::shared_ptr<T>> : std::hash<std::string_view> {
-//	using is_transparent = void;
-//	using std::hash<std::string_view>::operator();
-//	size_t operator()( const std::shared_ptr<T>& val ) const noexcept {
-//		if (val == nullptr)
-//			return operator()("");
-//		return operator()(val->GetName());
-//	}
-//};
-
-template<QuanFloq::stdNamed T>
-struct std::less<T> {
-	using is_transparent = void;
-	constexpr bool operator()( const T& lhs, const T& rhs ) const {
-		return lhs.GetName() < rhs.GetName();
-	}
-	constexpr bool operator()( const T& lhs, std::string_view rhs ) const {
-		return lhs.GetName() < rhs;
-	}
-	constexpr bool operator()( std::string_view lhs, const T& rhs ) const {
-		return lhs < rhs.GetName();
-	}
-};
-template<QuanFloq::stdNamed T>
-struct std::less<std::reference_wrapper<T>> {
-	using is_transparent = void;
+	using std::less<T&>::operator();
+	using std::less<T*>::operator();
 	constexpr bool operator()( const std::reference_wrapper<T>& lhs, const std::reference_wrapper<T>& rhs ) const {
-		return lhs.get().GetName() < rhs.get().GetName();
+		return &lhs < &rhs;
 	}
-	constexpr bool operator()( const std::reference_wrapper<T>& lhs, std::string_view rhs ) const {
-		return lhs.get().GetName() < rhs;
+	template<QuanFloq::TransparentLessKey<T&> Key>
+	constexpr bool operator()( const std::reference_wrapper<T>& lhs, const Key& rhs ) const {
+		return std::less<T&>::operator()(lhs.get(), rhs);
 	}
-	constexpr bool operator()( std::string_view lhs, const std::reference_wrapper<T>& rhs ) const {
-		return lhs < rhs.get().GetName();
+	template<QuanFloq::TransparentLessKey<T&> Key>
+	constexpr bool operator()( const Key& lhs, const std::reference_wrapper<T>& rhs ) const {
+		return std::less<T&>::operator()(lhs, rhs.get());
 	}
-};
-template<QuanFloq::stdNamed T>
-struct std::less<std::shared_ptr<T>> {
-	using is_transparent = void;
-	constexpr bool operator()( const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs ) const {
-		if (lhs == nullptr)
-			return rhs != nullptr;
-		if (rhs == nullptr)
-			return false;
-		return lhs->GetName() < rhs->GetName();
+	template<QuanFloq::TransparentLessKey<T*> Key>
+	constexpr bool operator()( const std::reference_wrapper<T>& lhs, const Key& rhs ) const {
+		return std::less<T*>::operator()(&lhs.get(), rhs);
 	}
-	constexpr bool operator()( const std::shared_ptr<T>& lhs, std::string_view rhs ) const {
-		if (lhs == nullptr)
-			return !rhs.empty();
-		return lhs->GetName() < rhs;
-	}
-	constexpr bool operator()( std::string_view lhs, const std::shared_ptr<T>& rhs ) const {
-		if (rhs == nullptr)
-			return false;
-		return lhs < rhs->GetName();
+	template<QuanFloq::TransparentLessKey<T*> Key>
+	constexpr bool operator()( const Key& lhs, const std::reference_wrapper<T>& rhs ) const {
+		return std::less<T*>::operator()(lhs, &rhs.get());
 	}
 };
-template<QuanFloq::stdNamed T>
-struct std::equal_to<T> {
+template<QuanFloq::Hashable T>
+struct std::hash<std::reference_wrapper<T>>
+		: std::hash<T> {
 	using is_transparent = void;
-	constexpr bool operator()( const T& lhs, const T& rhs ) const {
-		return lhs == rhs;
-	}
-	constexpr bool operator()( const T& lhs, std::string_view rhs ) const {
-		return lhs.GetName() == rhs;
-	}
-	constexpr bool operator()( std::string_view lhs, const T& rhs ) const {
-		return lhs == rhs.GetName();
+	using std::hash<T>::operator();
+	constexpr size_t operator()( const std::reference_wrapper<T>& val ) const {
+		return std::hash<T>::operator()(val.get());
 	}
 };
-template<QuanFloq::stdNamed T>
-struct std::equal_to<std::reference_wrapper<T>> {
+template<class T>
+struct std::equal_to<std::reference_wrapper<T>>
+		: std::equal_to<T&>, std::equal_to<T*> {
 	using is_transparent = void;
+	using std::equal_to<T&>::operator();
+	using std::equal_to<T*>::operator();
 	constexpr bool operator()( const std::reference_wrapper<T>& lhs, const std::reference_wrapper<T>& rhs ) const {
-		return lhs.get() == rhs.get();
+		return &lhs == &rhs;
 	}
-	constexpr bool operator()( const std::reference_wrapper<T>& lhs, std::string_view rhs ) const {
-		return lhs.get().GetName() == rhs;
+	template<QuanFloq::TransparentEqualKey<T&> Key>
+	constexpr bool operator()( const std::reference_wrapper<T>& lhs, const Key& rhs ) const {
+		return std::equal_to<T&>::operator()(lhs.get(), rhs);
 	}
-	constexpr bool operator()( std::string_view lhs, const std::reference_wrapper<T>& rhs ) const {
-		return lhs == rhs.get().GetName();
+	template<QuanFloq::TransparentEqualKey<T&> Key>
+	constexpr bool operator()( const Key& lhs, const std::reference_wrapper<T>& rhs ) const {
+		return std::equal_to<T&>::operator()(lhs, rhs.get());
+	}
+	template<QuanFloq::TransparentEqualKey<T*> Key>
+	constexpr bool operator()( const std::reference_wrapper<T>& lhs, const Key& rhs ) const {
+		return std::equal_to<T*>::operator()(&lhs.get(), rhs);
+	}
+	template<QuanFloq::TransparentEqualKey<T*> Key>
+	constexpr bool operator()( const Key& lhs, const std::reference_wrapper<T>& rhs ) const {
+		return std::equal_to<T*>::operator()(lhs, &rhs.get());
 	}
 };
-template<QuanFloq::stdNamed T>
-struct std::equal_to<std::shared_ptr<T>> {
+template<class T>
+struct std::less<std::shared_ptr<T>>
+		: std::less<T*> {
 	using is_transparent = void;
+	using std::less<T*>::operator();
 	constexpr bool operator()( const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs ) const {
-		return lhs.get() == rhs.get();
+		return std::less<T*>::operator()(lhs.get(), rhs.get());
 	}
-	constexpr bool operator()( const std::shared_ptr<T>& lhs, std::string_view rhs ) const {
-		if (lhs == nullptr)
-			return rhs.empty();
-		return lhs->GetName() == rhs;
+	constexpr bool operator()( T* const lhs, const std::shared_ptr<T>& rhs ) const {
+		return std::less<T*>::operator()(lhs, rhs.get());
 	}
-	constexpr bool operator()( std::string_view lhs, const std::shared_ptr<T>& rhs ) const {
-		if (rhs == nullptr)
-			return lhs.empty();
-		return lhs == rhs->GetName();
+	constexpr bool operator()( const std::shared_ptr<T>& lhs, T* const rhs ) const {
+		return std::less<T*>::operator()(lhs.get(), rhs);
+	}
+	template<QuanFloq::TransparentLessKey<T*> Key>
+	constexpr bool operator()( const std::shared_ptr<T>& lhs, const Key& rhs ) const {
+		return std::less<T*>::operator()(lhs.get(), rhs);
+	}
+	template<QuanFloq::TransparentLessKey<T*> Key>
+	constexpr bool operator()( const Key& lhs, const std::shared_ptr<T>& rhs ) const {
+		return std::less<T*>::operator()(lhs, rhs.get());
+	}
+};
+template<class T>
+struct std::equal_to<std::shared_ptr<T>>
+		: std::equal_to<T*> {
+	using is_transparent = void;
+	using std::equal_to<T*>::operator();
+	constexpr bool operator()( const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs ) const {
+		return std::equal_to<T*>::operator()(lhs.get(), rhs.get());
+	}
+	constexpr bool operator()( T* const lhs, const std::shared_ptr<T>& rhs ) const {
+		return std::equal_to<T*>::operator()(lhs, rhs.get());
+	}
+	constexpr bool operator()( const std::shared_ptr<T>& lhs, T* const rhs ) const {
+		return std::equal_to<T*>::operator()(lhs.get(), rhs);
+	}
+	template<QuanFloq::TransparentEqualKey<T*> Key>
+	constexpr bool operator()( const std::shared_ptr<T>& lhs, const Key& rhs ) const {
+		return std::equal_to<T*>::operator()(lhs.get(), rhs);
+	}
+	template<QuanFloq::TransparentEqualKey<T*> Key>
+	constexpr bool operator()( const Key& lhs, const std::shared_ptr<T>& rhs ) const {
+		return std::equal_to<T*>::operator()(lhs, rhs.get());
 	}
 };
 #endif //QUANFLOQ_REGISTRARCONCEPTS_HPP
