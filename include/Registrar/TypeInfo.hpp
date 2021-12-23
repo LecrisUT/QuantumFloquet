@@ -51,23 +51,22 @@ namespace QuanFloq {
 	struct BaseTypeTraits;
 
 	// region Main classes
-	struct dynamic_library {
-		using registrar_type = SharedRegistrarRoot<dynamic_library>;
+	struct DLibrary {
+		using registrar_type = SharedRegistrarRoot<DLibrary>;
 		inline static registrar_type registrar;
-		[[nodiscard]] static std::shared_ptr<dynamic_library> Create( std::string_view libray );
+		[[nodiscard]] static std::shared_ptr<DLibrary> Create( std::string_view libray );
 
-		static void* OpenDL( const std::filesystem::path& location );
 		static void CloseDL( void* ptr );
-		const std::filesystem::path Location;
-		void* const DLL;
+		using ptr_type = std::unique_ptr<void, decltype(&CloseDL)>;
+		static ptr_type OpenDL( const std::filesystem::path& location );
+		const std::filesystem::path location;
+		const ptr_type dll;
 	private:
-		explicit dynamic_library( std::string_view library );
-	public:
-		~dynamic_library();
+		explicit DLibrary( std::string_view library );
 
 	public:
 		std::string_view GetName() const;
-		bool operator==( const dynamic_library& t2 ) const;
+		bool operator==( const DLibrary& t2 ) const;
 	};
 
 	struct TypeInfo {
@@ -78,7 +77,7 @@ namespace QuanFloq {
 		const std::type_index type;
 		mutable std::string name;
 		const std::string mangledName;
-		mutable std::shared_ptr<dynamic_library> library;
+		mutable std::shared_ptr<DLibrary> library;
 		BaseFactory* factory;
 		IRegistrar* iRegistrar;
 		static const TypeInfo& Create( BaseTypeTraits&& data );

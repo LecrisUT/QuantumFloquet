@@ -17,12 +17,13 @@ add_executable(test_Registration test_Registration.cpp)
 target_link_libraries(test_Registration
 		PUBLIC TestRegistrarShared RegistrationShared)
 
-add_library(TypeInfoShared SHARED libTypeInfo.cpp)
-target_link_libraries(TypeInfoShared
+add_library(test_TypeInfoMod MODULE libTypeInfo.cpp)
+target_link_libraries(test_TypeInfoMod
 		PUBLIC Registrar)
 add_executable(test_TypeInfo test_TypeInfo.cpp)
 target_link_libraries(test_TypeInfo
-		PUBLIC TestRegistrarShared TypeInfoShared)
+		PUBLIC TestRegistrarShared)
+add_dependencies(test_TypeInfo test_TypeInfoMod)
 
 add_library(FactoryShared SHARED libFactory.cpp)
 target_link_libraries(FactoryShared

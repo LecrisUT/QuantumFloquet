@@ -41,7 +41,7 @@ namespace QuanFloq {
 	concept stdRegistered = std::derived_from<decltype(T::registration), RegistrationBase>;
 	// TODO: Cannot detect if proper type is registered without constexpr magic
 	template<class T>
-	concept stdTypeRegistered = std::same_as<decltype(T::typeInfo), const TypeInfo&>;
+	concept stdTypeRegistered = std::same_as<decltype(T::typeInfo), const TypeInfo* const>;
 	template<class T>
 	concept stdFactory = std::derived_from<decltype(T::factory), Factory<T>>;
 

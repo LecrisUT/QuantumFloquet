@@ -5,3 +5,13 @@
 #include "libTypeInfo.hpp"
 
 using namespace QuanFloq;
+
+void D1::Dummy() {
+
+}
+void E1::Dummy() {
+
+}
+E3::E3() {
+
+}

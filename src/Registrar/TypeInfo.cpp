@@ -14,11 +14,8 @@
 using namespace QuanFloq;
 
 // region Constructors/Destructors
-dynamic_library::dynamic_library( std::string_view library ) :
-		Location(library), DLL{OpenDL(Location)} { }
-dynamic_library::~dynamic_library() {
-	CloseDL(DLL);
-}
+DLibrary::DLibrary( std::string_view library ) :
+		location(library), dll{OpenDL(location)} { }
 TypeInfo::TypeInfo( BaseTypeTraits&& data ) :
 		type{data.type}, name{data.Name()}, mangledName{data.MangledName()},
 		iRegistrar{data.Registrar()}, factory{data.Factory()} { }
@@ -26,8 +23,8 @@ BaseTypeTraits::BaseTypeTraits( const std::type_index& type ) : type{type} { }
 // endregion
 
 // region Factory functions
-std::shared_ptr<dynamic_library> dynamic_library::Create( std::string_view libray ) {
-	auto ptr = std::shared_ptr<dynamic_library>(new dynamic_library(libray));
+std::shared_ptr<DLibrary> DLibrary::Create( std::string_view libray ) {
+	auto ptr = std::shared_ptr<DLibrary>(new DLibrary(libray));
 	registrar.Register(ptr);
 	// At library loading static members are initialized and registered
 	// There can be dangling registration because ResolvePostRegister cannot be called from constructor.q
@@ -70,24 +67,24 @@ bool std::equal_to<TypeInfo>::operator()( std::string_view lhs, const TypeInfo& 
 size_t std::hash<TypeInfo>::operator()( const TypeInfo& val ) const {
 	return std::hash<std::type_index>::operator()(val.type);
 }
-bool dynamic_library::operator==( const dynamic_library& t2 ) const { return DLL == t2.DLL; }
+bool DLibrary::operator==( const DLibrary& t2 ) const { return dll == t2.dll; }
 bool TypeInfo::operator==( const TypeInfo& t2 ) const { return type == t2.type; }
 bool TypeInfo::operator==( const std::type_index& t2 ) const { return type == t2; }
 // endregion
 
 // region Interface functions
-void* dynamic_library::OpenDL( const std::filesystem::path& Location ) {
+DLibrary::ptr_type DLibrary::OpenDL( const std::filesystem::path& Location ) {
 	void* dl = dlopen(Location.c_str(), RTLD_NOLOAD);
 	assert(!dl);
 	dl = dlopen(Location.c_str(), RTLD_NOW | RTLD_GLOBAL);
-	return dl;
+	return {dl, CloseDL};
 }
-void dynamic_library::CloseDL( void* ptr ) {
+void DLibrary::CloseDL( void* ptr ) {
 	if (ptr == nullptr)
 		dlclose(ptr);
 }
-std::string_view dynamic_library::GetName() const {
-	return Location.c_str();
+std::string_view DLibrary::GetName() const {
+	return location.c_str();
 }
 std::string_view TypeInfo::GetName() const {
 	return name;

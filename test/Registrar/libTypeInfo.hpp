@@ -5,51 +5,31 @@
 #ifndef QUANFLOQ_LIBTYPEINFO_HPP
 #define QUANFLOQ_LIBTYPEINFO_HPP
 
-#include "Registrar/SharedRegistrar.tpp"
-#include "Registrar/TypeInfo.tpp"
+#include "libTypeInfoBase.hpp"
 
 namespace QuanFloq {
-	struct IExposable {
-		virtual ~IExposable() = default;
-	};
-	struct BaseFactory {
-	};
-	template<class>
-	struct Factory : BaseFactory {
-	};
-	class A1 {
-	public:
+	struct F {
 		static const TypeInfo& typeInfo;
 	};
-	class A {
-	public:
-		static const TypeInfo& typeInfo;
-		static SharedRegistrarRoot<A> registrar;
-		static Factory<A> factory;
-		std::string_view GetName() const { return ""; };
+	struct D1 : D<D1> {
+		void Dummy();
 	};
-	class A2 {
-	public:
-		static const TypeInfo& typeInfo;
+	// Not sure why this works
+	struct D2 : D<D2> {
 	};
-	class B {
-	public:
-		static const TypeInfo& typeInfo;
+	struct D3 : D<D3> {
+		using D<D3>::D;
 	};
-	template<class T>
-	class C {
-	public:
-		static const TypeInfo* typeInfo;
-		static_assert(&typeInfo);
+	struct E1 : E<E1> {
+		void Dummy();
 	};
-	template<class T>
-	inline const TypeInfo* C<T>::typeInfo = &TypeInfo::Create<C<T>>();
-	inline const TypeInfo& A1::typeInfo = TypeInfo::Create<A1, A>("Suffix1");
-	inline const TypeInfo& A::typeInfo = TypeInfo::Create<A>();
-	inline const TypeInfo& A2::typeInfo = TypeInfo::Create<A2, A>("Suffix2");
-	inline const TypeInfo& B::typeInfo = TypeInfo::Create<B>("BNamed");
-	inline SharedRegistrarRoot<A> A::registrar;
-	inline Factory<A> A::factory;
+	struct E2 : E<E2> {
+		using E<E2>::E;
+	};
+	struct E3 : E<E3> {
+		E3();
+	};
+	inline const TypeInfo& F::typeInfo = TypeInfo::Create<F>();
 }
 
 #endif //QUANFLOQ_LIBTYPEINFO_HPP
