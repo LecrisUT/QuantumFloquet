@@ -4,6 +4,7 @@
 
 #include "interface/IExposable.hpp"
 #include "Registrar/TypeInfo.hpp"
+#include "Registrar/SharedRegistrar.tpp"
 #include "interface/Scriber/ScribeDriver.hpp"
 
 using namespace QuanFloq;
@@ -15,13 +16,15 @@ const TypeInfo& IExposable::GetType() const {
 }
 IExposable::IExposable() {
 	assert(ScribeDriver::registrar.Contains("JSON Driver"));
-	Format = ScribeDriver::registrar["JSON Driver"];
-	assert(Format != nullptr);
+	format = ScribeDriver::registrar["JSON Driver"];
+	assert(format != nullptr);
 }
-IExposable::IExposable( std::string_view format ) {
-	Format = ScribeDriver::registrar[format];
-	assert(Format != nullptr);
+IExposable::IExposable( std::string_view f ) {
+	format = ScribeDriver::registrar[f];
+	assert(format != nullptr);
 }
-std::string IExposable::GetBaseName() const {
-	return GetType().name;
+void IExposable::RegisterName( std::string_view name ) {
+	std::string_view name2 = name.empty() ? GetName() : name;
+	if (!name2.empty())
+		GetType().iRegistrar->RegisterName(name2, this);
 }

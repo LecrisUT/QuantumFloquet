@@ -16,7 +16,7 @@
 namespace QuanFloq {
 	class ScribeDriver;
 	class FactoryRequestBase;
-	class dynamic_library;
+	class DLibrary;
 
 	struct ScriberFile {
 		std::filesystem::path path;
@@ -69,6 +69,8 @@ namespace QuanFloq {
 		template<Exposable T>
 		void Scribe( std::string_view name, std::vector<std::shared_ptr<T>>& value,
 		             bool required = false, bool saveData = false );
+		template<class T>
+		void Scribe( std::string_view name, T& value, bool required = false );
 	};
 }
 

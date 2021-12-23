@@ -6,28 +6,32 @@
 #define QUANFLOQ_INCLUDE_REGISTRAR_FACTORY_HPP
 
 #include "RegistrarConcepts.hpp"
+#include "RefRegistrar.hpp"
+#include <exception>
 
 namespace QuanFloq {
 	// Predeclare superclasses
 	class IExposable;
 	class FactoryRequestBase;
 
-	struct FactoryBase {
-		static RefRegistrarRoot<FactoryBase> registrar;
+	struct BaseFactory {
+		using registrar_type = RefRegistrarRoot<BaseFactory>;
+		std::string name;
+		static registrar_type registrar;
 		virtual IExposable& Make( FactoryRequestBase& bReq, IExposable* parent ) = 0;
-		virtual void Make( FactoryRequestBase& bReq, IExposable* parent, std::shared_ptr<IExposable>& location ) = 0;
-		virtual std::string GetName() const = 0;
+		virtual std::string_view GetName() const = 0;
 	};
+	inline BaseFactory::registrar_type BaseFactory::registrar;
 
 	template<class T>
 	struct Factory :
-			FactoryBase {
-		std::string GetName() const final;
+			BaseFactory {
+		std::string_view GetName() const;
 		virtual std::unique_ptr<T> Make( IExposable* parent );
-		template<std::constructible_from<T> ...Args>
-		std::unique_ptr<T> Make( Args&& ... args );
+		template<class ...Args>
+		requires std::constructible_from<T, Args...>
+		std::unique_ptr<T> MakeUnique( Args&& ... args );
 		IExposable& Make( FactoryRequestBase& bReq, IExposable* parent ) override;
-		void Make( FactoryRequestBase& bReq, IExposable* parent, std::shared_ptr<IExposable>& location ) final;
 		Factory();
 	};
 
@@ -40,10 +44,9 @@ namespace QuanFloq {
 	private:
 		template<class U>
 		bool Integrate( FactoryRequestBase& bReq, std::unique_ptr<T>&& object, IExposable*& location );
+		template<class U>
+		bool IntegrateShared( FactoryRequestBase& bReq, std::shared_ptr<T> object, IExposable*& location );
 	};
 }
 
-#include "Registrars.tpp"
-
-inline RefRegistrarRoot<FactoryBase> FactoryBase::registrar;
 #endif //QUANFLOQ_INCLUDE_REGISTRAR_FACTORY_HPP

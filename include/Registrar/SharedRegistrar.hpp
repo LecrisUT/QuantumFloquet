@@ -67,8 +67,9 @@ namespace QuanFloq {
 		const IExposable* GetRef( std::string_view str ) const override;
 		std::shared_ptr<IExposable> GetPtr( std::string_view str ) const override;
 
-		bool TryRegister( std::shared_ptr<IExposable> ptr ) override;
+//		bool TryRegister( std::shared_ptr<IExposable> ptr ) override;
 		virtual std::pair<typename set_type::iterator, bool> Register( ptr_type item );
+		bool RegisterName( std::string_view name, IExposable* item ) override;
 		virtual bool RegisterName( std::string_view name, ptr_type item );
 		bool RegisterName( std::string&& name, ptr_type item );
 		virtual bool Erase( value_type& item );
@@ -122,8 +123,8 @@ namespace QuanFloq {
 		requires TransparentEqualKey<Key, ptr_type> || TransparentLessKey<Key, ptr_type>
 		ptr_type operator[]( const Key& key ) const;
 		ptr_type operator[]( std::string_view str ) const;
-		ptr_type operator[]( value_type& str ) const;
-		ptr_type operator[]( value_type* const str ) const;
+		ptr_type operator[]( value_type& item ) const;
+		ptr_type operator[]( value_type* item ) const;
 		struct IQueue {
 			using value_type = typename SharedRegistrarRoot<T>::value_type;
 			using ptr_type = typename SharedRegistrarRoot<T>::ptr_type;

@@ -5,6 +5,8 @@
 #include "Registrar/TypeInfo.hpp"
 #include "interface/Scriber/Scriber.tpp"
 #include "interface/Scriber/ScribeDriver.hpp"
+#include "Registrar/ObjectRegistrar.tpp"
+#include "Registrar/SharedRegistrar.tpp"
 
 using namespace QuanFloq;
 
@@ -48,16 +50,28 @@ void Scriber::Scribe( std::string_view name, std::unique_ptr<FactoryRequestBase>
 
 
 template<>
-void Scriber::Scribe( std::string_view name, std::shared_ptr<dynamic_library>& value, bool required ) {
+void Scriber::Scribe( std::string_view name, std::shared_ptr<DLibrary>& value, bool required ) {
 	std::string Location;
 	if (state == Load) {
 		Scribe(name, Location, required);
-		value = dynamic_library::registrar[Location];
+		value = DLibrary::registrar[Location];
 		if (value == nullptr)
-			value = dynamic_library::Create(Location);
+			value = DLibrary::Create(Location);
 	} else {
 		if (value != nullptr)
-			Location = value->Location;
+			Location = value->location;
+		Scribe(name, Location, required);
+	}
+}
+template<>
+void Scriber::Scribe( std::string_view name, const TypeInfo*& value, bool required ) {
+	std::string Location;
+	if (state == Load) {
+		Scribe(name, Location, required);
+		value = &TypeInfo::registrar[Location];
+	} else {
+		if (value != nullptr)
+			Location = value->name;
 		Scribe(name, Location, required);
 	}
 }

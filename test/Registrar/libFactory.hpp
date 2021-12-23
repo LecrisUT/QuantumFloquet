@@ -6,6 +6,7 @@
 #define QUANFLOQ_TEST_REGISTRAR_LIBFACTORY_HPP
 
 #include "Registrar/Factory.tpp"
+#include "Registrar/FactoryRequest.tpp"
 
 namespace QuanFloq {
 	struct IExposable {
@@ -17,7 +18,7 @@ namespace QuanFloq {
 		static Factory<A> factory;
 	};
 	template<>
-	std::string Factory<A>::GetName() const;
+	std::string_view Factory<A>::GetName() const;
 	inline Factory<A> A::factory;
 }
 

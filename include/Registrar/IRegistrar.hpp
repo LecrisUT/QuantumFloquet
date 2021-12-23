@@ -55,7 +55,8 @@ namespace QuanFloq {
 		virtual bool Contains( std::string_view str ) const = 0;
 		virtual const IExposable* GetRef( std::string_view str ) const = 0;
 		virtual std::shared_ptr<IExposable> GetPtr( std::string_view str ) const;
-		virtual bool TryRegister( std::shared_ptr<IExposable> ptr );
+//		virtual bool TryRegister( std::shared_ptr<IExposable> ptr );
+		virtual bool RegisterName( std::string_view name, IExposable* item ) = 0;
 		virtual bool Erase( std::string_view item ) = 0;
 
 		virtual void ResolvePostRegister( std::string_view str );

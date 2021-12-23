@@ -5,6 +5,7 @@
 #ifndef QUANFLOQ_SCRIBECONCEPTS_HPP
 #define QUANFLOQ_SCRIBECONCEPTS_HPP
 
+#include "interface/InterfaceConcepts.hpp"
 #include "Registrar/RegistrarConcepts.hpp"
 #include <concepts>
 #include <vector>
@@ -12,12 +13,8 @@
 
 namespace QuanFloq {
 	// Forward declarations
-	class IExposable;
 	class ScribeDriver;
 	class Scriber;
-
-	template<class T>
-	concept Exposable = std::derived_from<T, IExposable>;
 
 	template<class T>
 	concept IntType = std::signed_integral<T>;

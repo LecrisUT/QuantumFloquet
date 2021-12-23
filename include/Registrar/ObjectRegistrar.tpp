@@ -159,7 +159,7 @@ template<class T>
 const typename ObjectRegistrarRoot<T>::value_type& ObjectRegistrarRoot<T>::operator[]( std::string_view str ) const {
 	auto key = map.find(str);
 	if (key == map.end())
-		return nullptr;
+		throw NotRegistered(*this, str);
 	return key->second.get();
 }
 // endregion
@@ -223,6 +223,13 @@ ObjectRegistrarRoot<T>::Register( Args&& ...args ) {
 	if (!currName.empty())
 		ResolvePostRegister(currName);
 	return res;
+}
+template<class T>
+bool ObjectRegistrarRoot<T>::RegisterName( std::string_view name, IExposable* item ) {
+	if constexpr (std::derived_from<T, IExposable>)
+		return RegisterName(name, operator[](*static_cast<T*>(item)));
+	else
+		return false;
 }
 template<class T>
 bool ObjectRegistrarRoot<T>::RegisterName( std::string_view name, const value_type& item ) {

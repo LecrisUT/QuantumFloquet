@@ -5,12 +5,12 @@
 #ifndef QUANFLOQ_INCLUDE_REGISTRAR_FACTORY_TPP
 #define QUANFLOQ_INCLUDE_REGISTRAR_FACTORY_TPP
 
-#include "interface/Scriber/FactoryRequest.hpp"
-#include "Registrars.tpp"
+#include "FactoryRequest.hpp"
+#include "RefRegistrar.tpp"
 #include "TypeInfo.hpp"
-#include "TypeRegistration.hpp"
 #include "Factory.hpp"
 #include <utility>
+#include <cassert>
 
 using namespace QuanFloq;
 
@@ -19,6 +19,8 @@ template<class T>
 Factory<T>::Factory() {
 	static_assert(Exposable<T>);
 	registrar.Register(*this);
+	if constexpr(stdTypeRegistered<T>)
+		name = T::typeInfo->name + "Factory";
 }
 
 template<class This, class T>
@@ -33,39 +35,58 @@ FactoryWithBases<T, Args...>::FactoryWithBases() {
 // region Interface
 template<class T>
 std::unique_ptr<T> Factory<T>::Make( IExposable* parent ) {
-	return std::make_unique<T>();
+	if constexpr (std::constructible_from<T>)
+		return std::make_unique<T>();
+	else
+		throw std::runtime_error("Cannot Make");
 }
 template<class T>
-template<std::constructible_from<T>... Args>
-std::unique_ptr<T> Factory<T>::Make( Args&& ... args ) {
+template<class... Args>
+requires std::constructible_from<T, Args...>
+std::unique_ptr<T> Factory<T>::MakeUnique( Args&& ... args ) {
 	return std::make_unique<T>(std::forward<Args>(args)...);
 }
 template<class T>
 IExposable& Factory<T>::Make( FactoryRequestBase& bReq, IExposable* parent ) {
 	auto req = dynamic_cast<IFactoryRequest<T>*>(&bReq);
 	assert(req != nullptr);
-	return req->Integrate(Make(parent));
+	auto item = Make(parent);
+	if (bReq.sharedType) {
+		std::shared_ptr<T> sitem = std::move(item);
+		if constexpr (stdSharedRegistrar<T>)
+			T::registrar.Register(sitem);
+		if constexpr (stdRefRegistrar<T>)
+			T::registrar.Register(*sitem);
+		return req->IntegrateShared(sitem);
+	} else {
+		if constexpr (stdRefRegistrar<T>)
+			T::registrar.Register(*item);
+		return req->Integrate(std::move(item));
+	}
 }
 template<class T>
-void Factory<T>::Make( FactoryRequestBase& bReq, IExposable* parent, std::shared_ptr<IExposable>& location ) {
-	assert(bReq.sharedType);
-	std::shared_ptr<IExposable> object = Make(parent);
-	bReq.Integrate(object);
-	location = object;
-}
-template<class T>
-std::string Factory<T>::GetName() const {
-	static_assert(stdTypeRegistered<T>,
-	              "Cannot automatically deduce name for non stdTypeRegistered. GetName() has to be fully specialized");
-	return T::typeRegistration.type.name + "Generator";
+std::string_view Factory<T>::GetName() const {
+	return name;
 }
 
 template<class T, class ...Args>
 IExposable& FactoryWithBases<T, Args...>::Make( FactoryRequestBase& bReq, IExposable* parent ) {
 	IExposable* value;
 	auto object = Make(parent);
-	bool result = Integrate<T>(bReq, std::forward<std::unique_ptr<T>>(object), value) ||
-	              (Integrate<Args>(bReq, std::forward<std::unique_ptr<T>>(object), value) || ...);
+	bool result;
+	if (bReq.sharedType) {
+		std::shared_ptr<T> sitem = std::move(object);
+		if constexpr (stdSharedRegistrar<T>)
+			T::registrar.Register(sitem);
+		if constexpr (stdRefRegistrar<T>)
+			T::registrar.Register(*sitem);
+		result = IntegrateShared<T>(bReq, sitem, value) || (IntegrateShared<Args>(bReq, sitem, value) || ...);
+	} else {
+		if constexpr (stdRefRegistrar<T>)
+			T::registrar.Register(*object);
+		result = Integrate<T>(bReq, std::forward<std::unique_ptr<T>>(object), value) ||
+		         (Integrate<Args>(bReq, std::forward<std::unique_ptr<T>>(object), value) || ...);
+	}
 	assert(result);
 	assert(value != nullptr);
 	assert(object == nullptr);
@@ -79,6 +100,18 @@ inline bool FactoryWithBases<T, Args...>::Integrate( FactoryRequestBase& bReq, s
 	if (request == nullptr)
 		return false;
 	location = &request->Integrate(std::move(object));
+	assert(location != nullptr);
+	assert(object == nullptr);
+	return true;
+}
+template<class T, class ...Args>
+template<class U>
+inline bool FactoryWithBases<T, Args...>::IntegrateShared( FactoryRequestBase& bReq, std::shared_ptr<T> object,
+                                                           IExposable*& location ) {
+	auto request = dynamic_cast<IFactoryRequest<U>*>(&bReq);
+	if (request == nullptr)
+		return false;
+	location = &request->IntegrateShared(std::move(object));
 	assert(location != nullptr);
 	assert(object == nullptr);
 	return true;

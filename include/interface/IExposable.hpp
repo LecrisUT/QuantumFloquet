@@ -18,16 +18,16 @@ namespace QuanFloq {
 
 	class IExposable {
 	public:
-		std::shared_ptr<ScribeDriver> Format;
+		std::shared_ptr<ScribeDriver> format;
 
 	public:
 		IExposable();
 		explicit IExposable( std::string_view format );
 	public:
 		virtual void ExposeData( Scriber& scriber );
-		virtual std::string GetBaseName() const;
 		virtual std::string_view GetName() const = 0;
 		virtual const TypeInfo& GetType() const;
+		virtual void RegisterName( std::string_view name = "" );
 	};
 }
 

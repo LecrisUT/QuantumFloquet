@@ -8,8 +8,8 @@
 #include "Scriber.hpp"
 #include "ScribeDriver.hpp"
 #include "Registrar/TypeInfo.hpp"
-#include "Registrar/Registrar.hpp"
-#include "FactoryRequest.tpp"
+//#include "Registrar/Registrars.tpp"
+#include "Registrar/FactoryRequest.tpp"
 
 using namespace QuanFloq;
 
@@ -84,7 +84,14 @@ void Scriber::Scribe( std::string_view name, std::vector<std::shared_ptr<T>>& va
 	Scribe(name, std::make_unique<FactoryRequest<std::shared_ptr, T>>(value, saveData), required);
 }
 
+template<class T>
+void Scriber::Scribe( std::string_view name, T& value, bool required ) {
+	static_assert(!std::same_as<T, T>,
+	              "No default Scribe is implemented");
+};
 template<>
-void Scriber::Scribe( std::string_view name, std::shared_ptr<dynamic_library>& value, bool required );
+void Scriber::Scribe( std::string_view name, std::shared_ptr<DLibrary>& value, bool required );
+template<>
+void Scriber::Scribe( std::string_view name, const TypeInfo*& value, bool required );
 
 #endif //QUANFLOQ_SCRIBER_TPP

@@ -41,6 +41,7 @@ void B::ExposeData( Scriber& scriber ) {
 }
 void C::ExposeData( Scriber& scriber ) {
 	scriber.Scribe("Name", name);
+	RegisterName();
 	if (scriber.state == Load)
 		registrar.ResolvePostRegister(name);
 }

@@ -62,6 +62,7 @@ namespace QuanFloq {
 		template<class ...Args>
 		requires std::constructible_from<T, Args...>
 		std::pair<typename set_type::iterator, bool> Register( Args&& ... );
+		virtual bool RegisterName( std::string_view name, IExposable* item ) override;
 		virtual bool RegisterName( std::string_view name, const value_type& item );
 		bool RegisterName( std::string&& name, const value_type& item );
 		virtual bool Erase( const value_type& item );

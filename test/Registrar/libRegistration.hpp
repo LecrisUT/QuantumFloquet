@@ -5,16 +5,17 @@
 #ifndef QUANFLOQ_LIBREGISTRATION_HPP
 #define QUANFLOQ_LIBREGISTRATION_HPP
 
-#include "Registrar/Registrars.tpp"
-#include "Registrar/Registration.tpp"
+#include "Registrar/RegistrarConcepts.hpp"
+#include "Registrar/RefRegistrar.tpp"
+#include "Registrar/SharedRegistrar.tpp"
+#include "Registrar/Registration.hpp"
 
 namespace QuanFloq {
 	struct IExposable {
 		virtual ~IExposable() = default;
 	};
 
-	class A {
-
+	class A : public IExposable {
 	public:
 		static SharedRegistrarRoot<A> registrar;
 		virtual std::string_view GetName() const = 0;
@@ -26,7 +27,7 @@ namespace QuanFloq {
 		static PtrRegistration registration;
 		std::string_view GetName() const override;
 	};
-	class B {
+	class B : public IExposable {
 	public:
 		static RefRegistrarRoot<B> registrar;
 		virtual std::string_view GetName() const = 0;

@@ -6,7 +6,7 @@
 #define QUANFLOQ_JSONDRIVER_H
 
 #include "ScribeDriver.hpp"
-#include "Registrar/Registration.tpp"
+#include "Registrar/Registration.hpp"
 
 namespace QuanFloq {
 	// Predeclare classes dependant on implementation
@@ -15,8 +15,8 @@ namespace QuanFloq {
 
 	class JSONDriver :
 			public ScribeDriver {
-		static PtrRegistration registration;
 	public:
+		static PtrRegistration registration;
 		std::shared_ptr<Scriber> GenScriber( ScribeState state, std::string_view filename ) override;
 		std::string_view FileExtension() override;
 		std::string_view GetName() const override;

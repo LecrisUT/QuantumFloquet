@@ -68,6 +68,7 @@ namespace QuanFloq {
 		const IExposable* GetRef( std::string_view str ) const override;
 
 		virtual std::pair<typename set_type::iterator, bool> Register( value_type& item );
+		bool RegisterName( std::string_view name, IExposable* item ) override;
 		virtual bool RegisterName( std::string_view name, value_type& item );
 		bool RegisterName( std::string&& name, value_type& item );
 		virtual bool Erase( value_type& item );

@@ -5,13 +5,14 @@
 #ifndef QUANFLOQ_INCLUDE_INTERFACE_SCRIBER_FACTORYREQUEST_HPP
 #define QUANFLOQ_INCLUDE_INTERFACE_SCRIBER_FACTORYREQUEST_HPP
 
-#include "ScribeConcepts.hpp"
+#include "RegistrarConcepts.hpp"
+#include "interface/InterfaceConcepts.hpp"
 #include "interface/ICloneable.hpp"
 
 namespace QuanFloq {
 	// Predeclare superclasses
 	class IExposable;
-	struct RegistrationTask;
+	struct IRegistrationTask;
 
 	struct FactoryRequestBase :
 			ICloneable<FactoryRequestBase> {
@@ -21,15 +22,16 @@ namespace QuanFloq {
 		std::vector<std::reference_wrapper<IExposable>> values;
 		int requestsPending = 0;
 		int requestsFinished = 0;
-		virtual RegistrationTask AwaitGet( IRegistrar& registrar, std::string_view name ) = 0;
+		virtual IRegistrationTask AwaitGet( IRegistrar& registrar, std::string_view name ) = 0;
 		virtual void Get( IRegistrar& registrar, std::string_view name, bool await = true ) = 0;
-		virtual void Integrate( std::shared_ptr<IExposable> item ) = 0;
+		virtual void IntegrateShared( std::shared_ptr<IExposable> item ) = 0;
 		virtual ~FactoryRequestBase() = default;
 	};
 	template<Exposable T>
 	struct IFactoryRequest :
 			FactoryRequestBase {
 		virtual IExposable& Integrate( std::unique_ptr<T>&& item ) = 0;
+		virtual IExposable& IntegrateShared( std::shared_ptr<T> item ) = 0;
 	};
 
 	template<template<class> class P, Exposable T> requires sptr<P<T>, T>
@@ -38,10 +40,11 @@ namespace QuanFloq {
 		P<T>* location;
 		std::vector<P<T>>* vecLocation;
 		std::unique_ptr<FactoryRequestBase> Clone() const override;
-		RegistrationTask AwaitGet( IRegistrar& registrar, std::string_view name ) override;
+		IRegistrationTask AwaitGet( IRegistrar& registrar, std::string_view name ) override;
 		void Get( IRegistrar& registrar, std::string_view name, bool await = true ) override;
 		IExposable& Integrate( std::unique_ptr<T>&& item ) override;
-		void Integrate( std::shared_ptr<IExposable> item ) override;
+		IExposable& IntegrateShared( std::shared_ptr<T> item ) override;
+		void IntegrateShared( std::shared_ptr<IExposable> item ) override;
 		explicit FactoryRequest( P<T>& loc, bool scribeData = false );
 		explicit FactoryRequest( std::vector<P<T>>& loc, bool scribeData = false );
 	};

@@ -178,13 +178,10 @@ typename SharedRegistrarRoot<T>::ptr_type SharedRegistrarRoot<T>::operator[]( st
 }
 template<class T>
 typename SharedRegistrarRoot<T>::ptr_type SharedRegistrarRoot<T>::operator[]( value_type& item ) const {
-	auto key = set.find(&item);
-	if (key == set.end())
-		return nullptr;
-	return *key;
+	return operator[](&item);
 }
 template<class T>
-typename SharedRegistrarRoot<T>::ptr_type SharedRegistrarRoot<T>::operator[]( value_type* const item ) const {
+typename SharedRegistrarRoot<T>::ptr_type SharedRegistrarRoot<T>::operator[]( value_type* item ) const {
 	auto key = set.find(item);
 	if (key == set.end())
 		return nullptr;
@@ -192,13 +189,16 @@ typename SharedRegistrarRoot<T>::ptr_type SharedRegistrarRoot<T>::operator[]( va
 }
 // endregion
 // region Register and Erase
-template<class T>
-bool SharedRegistrarRoot<T>::TryRegister( std::shared_ptr<IExposable> ptr ) {
-	auto valuePtr = std::dynamic_pointer_cast<value_type>(ptr);
-	if (!valuePtr)
-		return false;
-	return Register(valuePtr).second;
-}
+//template<class T>
+//bool SharedRegistrarRoot<T>::TryRegister( std::shared_ptr<IExposable> ptr ) {
+//	if constexpr (std::derived_from<T,IExposable>) {
+//		auto valuePtr = std::dynamic_pointer_cast<value_type>(ptr);
+//		if (!valuePtr)
+//			return false;
+//		return Register(valuePtr).second;
+//	} else
+//		throw std::runtime_error("Not an IExposable");
+//}
 template<class T>
 std::pair<typename SharedRegistrarRoot<T>::set_type::iterator, bool> SharedRegistrarRoot<T>::Register( ptr_type item ) {
 	if constexpr (NameResolvable<T>) {
@@ -233,7 +233,16 @@ std::pair<typename SharedRegistrarRoot<T>::set_type::iterator, bool> SharedRegis
 	return res;
 }
 template<class T>
+bool SharedRegistrarRoot<T>::RegisterName( std::string_view name, IExposable* item ) {
+	if constexpr (std::derived_from<T, IExposable>)
+		return RegisterName(name, operator[](static_cast<T*>(item)));
+	else
+		return false;
+}
+template<class T>
 bool SharedRegistrarRoot<T>::RegisterName( std::string_view name, ptr_type item ) {
+	if (!item)
+		throw NotRegistered(*this, name);
 	if (map.contains(name))
 		return false;
 	map.insert_or_assign(name, item);

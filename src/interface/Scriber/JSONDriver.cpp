@@ -4,9 +4,9 @@
 
 #include "interface/Scriber/JSONDriver.hpp"
 #include "interface/Scriber/Scriber.tpp"
-#include "interface/Scriber/FactoryRequest.hpp"
+#include "Registrar/FactoryRequest.hpp"
 #include "interface/IExposable.hpp"
-#include "Registrar/TypeInfo.hpp"
+#include "Registrar/TypeInfo.tpp"
 #include "Registrar/Factory.hpp"
 #include <nlohmann/json.hpp>
 #include <fmt/format.h>
@@ -106,7 +106,7 @@ void JSONDriver::Scribe( Scriber& base, std::string_view name, IExposable& objec
 	assert(index != nullptr);
 	IExposable* OtherCaller = &object;
 	std::swap(base.currentCaller, OtherCaller);
-	if (object.Format == "JSON Driver") {
+	if (object.format == "JSON Driver") {
 		// Make a new indexer that contains the JSON object.
 		auto cptr = static_pointer_cast<ScriberIndex>(std::make_shared<JSONIndex>(index, name));
 		base.index.swap(cptr);
@@ -118,7 +118,7 @@ void JSONDriver::Scribe( Scriber& base, std::string_view name, IExposable& objec
 		std::shared_ptr<Scriber> child;
 		if (base.state == Save) {
 			filename = name;
-			filename += object.Format->FileExtension();
+			filename += object.format->FileExtension();
 			filename = index->GetCurrentPath(filename, '_');
 			if (name.empty())
 				index->json["Filename"] = filename;
@@ -130,7 +130,7 @@ void JSONDriver::Scribe( Scriber& base, std::string_view name, IExposable& objec
 			else
 				filename = index->json[std::string(name)]["Filename"].get<std::string>();
 		}
-		child = object.Format->GenScriber(base.state, filename);
+		child = object.format->GenScriber(base.state, filename);
 		object.ExposeData(*child);
 	}
 	std::swap(base.currentCaller, OtherCaller);
@@ -148,8 +148,8 @@ inline void ScribeHelper( JSONDriver* driver, nlohmann::json& j, Scriber& base,
 		auto typeName = j["Type"].get<std::string_view>();
 		assert(!typeName.empty());
 		assert(TypeInfo::registrar.Contains(typeName));
-		auto type = TypeInfo::registrar[typeName];
-		auto iregistrar = type->iRegistrar;
+		auto& type = TypeInfo::registrar[typeName];
+		auto iregistrar = type.iRegistrar;
 		assert(iregistrar != nullptr);
 		QuanFloq::JSONDriver::Register(*iregistrar, ptr, std::move(request));
 		// No need to call Scribe on the IExposable because it is handled by its constructor
@@ -173,20 +173,10 @@ inline void ScribeHelper( JSONDriver* driver, nlohmann::json& j, Scriber& base,
 		auto typeName = j["Type"].get<std::string_view>();
 		assert(TypeInfo::registrar.Contains(typeName));
 		auto type = TypeInfo::registrar[typeName];
-		auto factory = type->factory;
+		auto factory = type.factory;
 		assert(factory != nullptr);
-		auto iregistrar = type->iRegistrar;
-		if (request->sharedType && iregistrar != nullptr) {
-			std::shared_ptr<IExposable> ptr{};
-			factory->Make(*request, base.currentCaller, ptr);
-			assert(ptr != nullptr);
-			bool result = iregistrar->TryRegister(ptr);
-			assert(result);
-			driver->Scribe(base, name, *ptr);
-		} else {
-			auto& obj = factory->Make(*request, base.currentCaller);
-			driver->Scribe(base, name, obj);
-		}
+		auto& obj = factory->Make(*request, base.currentCaller);
+		driver->Scribe(base, name, obj);
 	}
 }
 inline void ScribeHelper( JSONDriver* driver, nlohmann::json& j, Scriber& base,

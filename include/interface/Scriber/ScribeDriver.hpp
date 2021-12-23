@@ -7,7 +7,6 @@
 
 #include "Thing/ThingDriver.hpp"
 #include "ScribeConcepts.hpp"
-#include "Registrar/Registrars.tpp"
 #include <memory>
 
 namespace QuanFloq {
@@ -18,15 +17,16 @@ namespace QuanFloq {
 	// TODO: add concept scribeable
 	class ScribeDriver :
 			public BaseDriver {
-	protected:
-		static RegistrationTask
-		AwaitGet( IRegistrar&, std::string_view, std::unique_ptr<FactoryRequestBase>&& request );
 	public:
-		static void
-		Register( IRegistrar& iRegistrar, std::string_view name, std::unique_ptr<FactoryRequestBase>&& request,
-		          bool await = true );
+		using registrar_type = SharedRegistrar<ScribeDriver, BaseDriver>;
+	protected:
+		static IRegistrationTask AwaitGet( IRegistrar&, std::string_view,
+		                                   std::unique_ptr<FactoryRequestBase>&& request );
+	public:
+		static void Register( IRegistrar& iRegistrar, std::string_view name,
+		                      std::unique_ptr<FactoryRequestBase>&& request, bool await = true );
 
-		static SharedRegistrar<ScribeDriver, BaseDriver> registrar;
+		static registrar_type registrar;
 		virtual std::shared_ptr<Scriber> GenScriber( ScribeState state, std::string_view filename ) = 0;
 		virtual std::string_view FileExtension() = 0;
 
@@ -67,7 +67,7 @@ namespace QuanFloq {
 		virtual void Scribe( Scriber& base, std::string_view name,
 		                     std::vector<std::string>& value, bool required ) = 0;
 	};
-	inline SharedRegistrar<ScribeDriver, BaseDriver> ScribeDriver::registrar;
+	inline ScribeDriver::registrar_type ScribeDriver::registrar;
 }
 
 

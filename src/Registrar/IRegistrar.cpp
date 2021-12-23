@@ -89,9 +89,9 @@ IRegistrar::IRegistrar() noexcept {
 std::shared_ptr<IExposable> IRegistrar::GetPtr( std::string_view str ) const {
 	throw NotImplemented(*this, "GetPtr");
 }
-bool IRegistrar::TryRegister( std::shared_ptr<IExposable> ptr ) {
-	throw NotImplemented(*this, "TryRegister");
-}
+//bool IRegistrar::TryRegister( std::shared_ptr<IExposable> ptr ) {
+//	throw NotImplemented(*this, "TryRegister");
+//}
 // endregion
 
 // region co_await functions

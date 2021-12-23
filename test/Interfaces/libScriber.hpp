@@ -7,8 +7,8 @@
 
 #include "interface/IExposable.hpp"
 #include "Registrar/Factory.tpp"
-#include "Registrar/TypeRegistration.tpp"
-#include "Registrar/Registration.tpp"
+#include "Registrar/TypeInfo.tpp"
+#include "Registrar/Registration.hpp"
 
 namespace QuanFloq {
 	struct DBase;
@@ -21,7 +21,7 @@ namespace QuanFloq {
 	struct A :
 			IExposable {
 		static Factory<A> factory;
-		static TypeRegistration typeRegistration;
+		static const TypeInfo* const typeInfo;
 
 		std::string name;
 		std::shared_ptr<CBase> CItem;
@@ -45,7 +45,7 @@ namespace QuanFloq {
 	};
 	struct B : BBase {
 		static FactoryWithBases<B, BBase> factory;
-		static TypeRegistration typeRegistration;
+		static const TypeInfo* const typeInfo;
 
 		std::string name;
 		std::shared_ptr<CBase> CItem;
@@ -55,7 +55,7 @@ namespace QuanFloq {
 	};
 	struct C : CBase {
 		static FactoryWithBases<C, CBase> factory;
-		static TypeRegistration typeRegistration;
+		static const TypeInfo* const typeInfo;
 
 		std::string name;
 
@@ -72,9 +72,9 @@ namespace QuanFloq {
 		static PtrRegistration registration;
 	};
 	// Type registration has to occur first
-	inline TypeRegistration A::typeRegistration = TypeRegistration::Create<A>("AType");
-	inline TypeRegistration B::typeRegistration = TypeRegistration::Create<B>("BType");
-	inline TypeRegistration C::typeRegistration = TypeRegistration::Create<C>("CType");
+	inline const TypeInfo* const A::typeInfo = &TypeInfo::Create<A>("AType");
+	inline const TypeInfo* const B::typeInfo = &TypeInfo::Create<B>("BType");
+	inline const TypeInfo* const C::typeInfo = &TypeInfo::Create<C>("CType");
 	inline SharedRegistrarRoot<CBase> CBase::registrar;
 	inline SharedRegistrarRoot<DBase> DBase::registrar;
 	inline Factory<A> A::factory;

@@ -202,6 +202,13 @@ RefRegistrarRoot<T>::Register( value_type& item ) {
 	return res;
 }
 template<class T>
+bool RefRegistrarRoot<T>::RegisterName( std::string_view name, IExposable* item ) {
+	if constexpr (std::derived_from<T, IExposable>)
+		return RegisterName(name, operator[](*static_cast<T*>(item)));
+	else
+		return false;
+}
+template<class T>
 bool RefRegistrarRoot<T>::RegisterName( std::string_view name, value_type& item ) {
 	// TODO: Need to check that the item is included in the set if called outside of Register
 	if (map.contains(name))

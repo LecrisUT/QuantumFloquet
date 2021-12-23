@@ -9,6 +9,6 @@
 using namespace QuanFloq;
 
 template<>
-std::string Factory<A>::GetName() const {
+std::string_view Factory<A>::GetName() const {
 	return "AFactory";
 }

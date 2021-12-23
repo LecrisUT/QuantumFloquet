@@ -6,7 +6,7 @@
 #define QUANFLOQ_INCLUDE_INTERFACE_SCRIBER_FACTORYREQUEST_TPP
 
 #include "FactoryRequest.hpp"
-#include "interface/IExposable.hpp"
+//#include "interface/IExposable.hpp"
 #include "Registrar/Registrars.hpp"
 #include <cassert>
 
@@ -26,7 +26,7 @@ FactoryRequest<P, T>::FactoryRequest( P<T>& loc, bool scribeData ):
 		this->sharedType = true;
 		this->scribeData = scribeData;
 	} else
-		assert(false);
+		throw std::runtime_error("Could not detect pointer template");
 }
 template<template<class> class P, Exposable T>
 requires sptr<P<T>, T>
@@ -42,7 +42,7 @@ FactoryRequest<P, T>::FactoryRequest( std::vector<P<T>>& loc, bool scribeData ):
 		this->sharedType = true;
 		this->scribeData = scribeData;
 	} else
-		assert(false);
+		throw std::runtime_error("Could not detect pointer template");
 }
 // endregion
 
@@ -57,7 +57,7 @@ std::unique_ptr<FactoryRequestBase> FactoryRequest<P, T>::Clone() const {
 // region Interfaces
 template<template<class> class P, Exposable T>
 requires sptr<P<T>, T>
-RegistrationTask FactoryRequest<P, T>::AwaitGet( IRegistrar& registrar, std::string_view name ) {
+IRegistrationTask FactoryRequest<P, T>::AwaitGet( IRegistrar& registrar, std::string_view name ) {
 	if constexpr(std::derived_from<P<T>, std::shared_ptr<T>>) {
 		this->requestsPending++;
 		if (this->arrayType) {
@@ -78,9 +78,7 @@ RegistrationTask FactoryRequest<P, T>::AwaitGet( IRegistrar& registrar, std::str
 		}
 		this->requestsFinished++;
 	} else
-		// Should not be called for integrating with unqiue_ptr
-		// TODO: Write a proper throw
-		assert(false);
+		throw std::runtime_error("Can only AwaitGet shared_ptr type");
 }
 template<template<class> class P, Exposable T>
 requires sptr<P<T>, T>
@@ -106,29 +104,7 @@ void FactoryRequest<P, T>::Get( IRegistrar& registrar, std::string_view name, bo
 			this->requestsFinished++;
 		}
 	} else
-		assert(false);
-}
-template<template<class> class P, Exposable T>
-requires sptr<P<T>, T>
-void FactoryRequest<P, T>::Integrate( std::shared_ptr<IExposable> item ) {
-	if constexpr(std::derived_from<P<T>, std::shared_ptr<T>>) {
-		assert(item != nullptr);
-		auto value = std::dynamic_pointer_cast<T>(item);
-		assert(value != nullptr);
-		this->requestsPending++;
-		this->requestsFinished++;
-		if (this->arrayType) {
-			assert(vecLocation != nullptr);
-			assert(value != nullptr);
-			vecLocation->push_back(value);
-		} else {
-			assert(location != nullptr);
-			assert(this->requestsPending == 1);
-			assert(value != nullptr);
-			*location = value;
-		}
-	} else
-		assert(false);
+		throw std::runtime_error("Can only AwaitGet shared_ptr type");
 }
 template<template<class> class P, Exposable T>
 requires sptr<P<T>, T>
@@ -136,7 +112,27 @@ IExposable& FactoryRequest<P, T>::Integrate( std::unique_ptr<T>&& item ) {
 	assert(item != nullptr);
 	this->requestsPending++;
 	this->requestsFinished++;
-	if constexpr (std::derived_from<P<T>, std::shared_ptr<T>>) {
+	if (this->arrayType) {
+		assert(vecLocation != nullptr);
+		vecLocation->emplace_back(std::move(item));
+		return *vecLocation->back();
+	} else {
+		assert(location != nullptr);
+		assert(this->requestsPending == 1);
+		*location = std::move(item);
+		return **location;
+	}
+}
+template<template<class> class P, Exposable T>
+requires sptr<P<T>, T>
+IExposable& FactoryRequest<P, T>::IntegrateShared( std::shared_ptr<T> item ) {
+	if constexpr (!std::derived_from<P<T>, std::shared_ptr<T>>)
+		throw std::runtime_error("Request is not shared type");
+	else {
+		if (!item)
+			throw std::runtime_error("Pointer is null");
+		this->requestsPending++;
+		this->requestsFinished++;
 		if (this->arrayType) {
 			assert(vecLocation != nullptr);
 			vecLocation->emplace_back(std::move(item));
@@ -147,18 +143,12 @@ IExposable& FactoryRequest<P, T>::Integrate( std::unique_ptr<T>&& item ) {
 			*location = std::move(item);
 			return **location;
 		}
-	} else {
-		if (this->arrayType) {
-			assert(vecLocation != nullptr);
-			vecLocation->emplace_back(std::move(item));
-			return *vecLocation->back();
-		} else {
-			assert(location != nullptr);
-			assert(this->requestsPending == 1);
-			location->swap(item);
-			return **location;
-		}
 	}
+}
+template<template<class> class P, Exposable T>
+requires sptr<P<T>, T>
+void FactoryRequest<P, T>::IntegrateShared( std::shared_ptr<IExposable> item ) {
+	IntegrateShared(std::dynamic_pointer_cast<T>(item));
 }
 // endregion
 
