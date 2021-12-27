@@ -19,15 +19,15 @@ namespace QuanFloq {
 		std::string name;
 		static registrar_type registrar;
 		virtual IExposable& Make( FactoryRequestBase& bReq, IExposable* parent ) = 0;
-		virtual std::string_view GetName() const = 0;
+		virtual std::string_view GetName() const;
 	};
 	inline BaseFactory::registrar_type BaseFactory::registrar;
 
 	template<class T>
 	struct Factory :
 			BaseFactory {
-		std::string_view GetName() const;
 		virtual std::unique_ptr<T> Make( IExposable* parent );
+		virtual std::shared_ptr<T> MakeShared( IExposable* parent );
 		template<class ...Args>
 		requires std::constructible_from<T, Args...>
 		std::unique_ptr<T> MakeUnique( Args&& ... args );

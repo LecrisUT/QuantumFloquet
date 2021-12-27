@@ -77,6 +77,7 @@ DLibrary::ptr_type DLibrary::OpenDL( const std::filesystem::path& Location ) {
 	void* dl = dlopen(Location.c_str(), RTLD_NOLOAD);
 	assert(!dl);
 	dl = dlopen(Location.c_str(), RTLD_NOW | RTLD_GLOBAL);
+	assert(dl);
 	return {dl, CloseDL};
 }
 void DLibrary::CloseDL( void* ptr ) {

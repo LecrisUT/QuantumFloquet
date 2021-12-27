@@ -1,0 +1,44 @@
+{
+  "Things": [
+    {
+      "Name": "ThingA_1",
+      "Def": "A"
+    },
+    {
+      "Name": "ThingB1_1",
+      "Def": "B1",
+      "Data": {
+        "Value": 1,
+        "Type": "BData"
+      },
+      "Comps": [
+        {
+          "Def": "BCompA",
+          "Value": 3
+        }
+      ]
+    },
+    {
+      "Name": "ThingB1_2",
+      "Def": "B1",
+      "Data": {
+        "Value": 2,
+        "Type": "BData"
+      }
+    },
+    {
+      "Name": "ThingB2_1",
+      "Def": "B2",
+      "Comps": [
+        {
+          "Name": "BCompB2_1",
+          "Def": "BCompB"
+        }
+      ]
+    },
+    {
+      "Name": "ThingC_1",
+      "Def": "C"
+    }
+  ]
+}

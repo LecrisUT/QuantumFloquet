@@ -8,6 +8,8 @@
 #include "interface/IExposable.hpp"
 #include "Registrar/TypeInfo.tpp"
 #include "Registrar/Factory.hpp"
+#include "Thing/Thing.hpp"
+#include "Registrar/SharedRegistrar.tpp"
 #include <nlohmann/json.hpp>
 #include <fmt/format.h>
 #include <scn/scn.h>
@@ -154,18 +156,18 @@ inline void ScribeHelper( JSONDriver* driver, nlohmann::json& j, Scriber& base,
 		QuanFloq::JSONDriver::Register(*iregistrar, ptr, std::move(request));
 		// No need to call Scribe on the IExposable because it is handled by its constructor
 	} else if (j.contains("Def")) {
-//		// Special constructors for Things and Comps using their Defs
-//		auto defName = j["Def"].get<std::string_view>();
-//		auto thingDef = BaseDef::registrar[defName];
-//		if (thingDef != nullptr) {
-//			auto& obj = thingDef->thingFactory.Make(request, caller);
-//			driver->Scribe(base, name, obj, caller);
-//		} else {
-//			auto compDef = BaseCompDef::registrar[defName];
-//			assert(compDef != nullptr);
-//			auto& obj = compDef->compFactory.Make(request, caller);
-//			driver->Scribe(base, name, obj, caller);
-//		}
+		// Special constructors for Things and Comps using their Defs
+		auto defName = j["Def"].get<std::string_view>();
+		if (BaseDef::registrar.Contains(defName)) {
+			auto thingDef = BaseDef::registrar[defName];
+			auto& obj = thingDef->thingFactory.Make(*request, base.currentCaller);
+			driver->Scribe(base, name, obj);
+		} else if (BaseCompDef::registrar.Contains(defName)) {
+			auto compDef = BaseCompDef::registrar[defName];
+			auto& obj = compDef->compFactory.Make(*request, base.currentCaller);
+			driver->Scribe(base, name, obj);
+		} else
+			throw std::runtime_error("Def not loaded");
 	} else {
 		// Other IExposable constructor Factories derived from their TypeInfo
 		assert(j.contains("Type"));
@@ -182,13 +184,13 @@ inline void ScribeHelper( JSONDriver* driver, nlohmann::json& j, Scriber& base,
 inline void ScribeHelper( JSONDriver* driver, nlohmann::json& j, Scriber& base,
                           std::string_view name, FactoryRequestBase& request, IExposable& object ) {
 	// Helper function for saving IExposable
-//	BaseThing* thing;
-//	BaseComp* comp;
-//	if ((thing = dynamic_cast<BaseThing*>(&object)) != nullptr) {
-//		j["Def"] = thing->Def->Name;
-//	} else if ((comp = dynamic_cast<BaseComp*>(&object)) != nullptr) {
-//		j["Def"] = comp->Def->Name;
-//	}
+	BaseThing* thing;
+	BaseComp* comp;
+	if ((thing = dynamic_cast<BaseThing*>(&object)) != nullptr) {
+		j["Def"] = thing->def->GetName();
+	} else if ((comp = dynamic_cast<BaseComp*>(&object)) != nullptr) {
+		j["Def"] = comp->def->GetName();
+	}
 	auto type = object.GetType();
 	j["Type"] = type.name;
 	if (request.sharedType && !request.scribeData)
@@ -204,12 +206,13 @@ void JSONDriver::Scribe( Scriber& base, std::string_view name, std::unique_ptr<F
 	auto index = std::dynamic_pointer_cast<JSONIndex>(base.index);
 	assert(index != nullptr);
 	if (base.state == Load) {
-		if (!index->json.contains(name)) {
+		if (!name.empty() && !index->json.contains(name)) {
 			if (required)
 				assert(false);
 			return;
 		}
-		auto& j = index->json[std::string(name)];
+		// If no name is given assume the file contains the whole object
+		auto& j = name.empty() ? index->json : index->json[std::string(name)];
 		if (j.is_array()) {
 			assert(request->arrayType);
 			for (int ind = 0; auto& jj: j) {

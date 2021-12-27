@@ -54,9 +54,11 @@ void Scriber::Scribe( std::string_view name, std::shared_ptr<DLibrary>& value, b
 	std::string Location;
 	if (state == Load) {
 		Scribe(name, Location, required);
-		value = DLibrary::registrar[Location];
-		if (value == nullptr)
-			value = DLibrary::Create(Location);
+		if (!Location.empty()) {
+			value = DLibrary::registrar[Location];
+			if (value == nullptr)
+				value = DLibrary::Create(Location);
+		}
 	} else {
 		if (value != nullptr)
 			Location = value->location;
@@ -68,7 +70,8 @@ void Scriber::Scribe( std::string_view name, const TypeInfo*& value, bool requir
 	std::string Location;
 	if (state == Load) {
 		Scribe(name, Location, required);
-		value = &TypeInfo::registrar[Location];
+		if (!Location.empty())
+			value = &TypeInfo::registrar[Location];
 	} else {
 		if (value != nullptr)
 			Location = value->name;

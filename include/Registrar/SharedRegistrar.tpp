@@ -241,10 +241,10 @@ bool SharedRegistrarRoot<T>::RegisterName( std::string_view name, IExposable* it
 }
 template<class T>
 bool SharedRegistrarRoot<T>::RegisterName( std::string_view name, ptr_type item ) {
-	if (!item)
+	if (item == nullptr)
 		throw NotRegistered(*this, name);
 	if (map.contains(name))
-		return false;
+		return map[name] == item;
 	map.insert_or_assign(name, item);
 	// Delete any leftover copies
 	for (auto iter = map.begin(); iter != map.end();) {

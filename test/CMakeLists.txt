@@ -8,3 +8,4 @@ target_link_libraries(BaseTest INTERFACE
 
 add_subdirectory(Registrar)
 add_subdirectory(Interfaces)
+add_subdirectory(Thing)

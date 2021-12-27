@@ -57,9 +57,9 @@ TEST_CASE("Test TypeInfo", "[Registrar][Type][Auto-Registration]") {
 		CHECK(TypeInfo::registrar.Contains("D1"));
 		CHECK(TypeInfo::registrar.Contains("D2"));
 		CHECK(TypeInfo::registrar.Contains("D3"));
-		CHECK(!TypeInfo::registrar.Contains("E1"));
-		CHECK(!TypeInfo::registrar.Contains("E2"));
-		CHECK(TypeInfo::registrar.Contains("E3"));
+		CHECK_NOFAIL(!TypeInfo::registrar.Contains("E1"));
+		CHECK_NOFAIL(!TypeInfo::registrar.Contains("E2"));
+		CHECK_NOFAIL(TypeInfo::registrar.Contains("E3"));
 		CHECK(TypeInfo::registrar.Contains("F"));
 	}
 }

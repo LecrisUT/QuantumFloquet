@@ -3,8 +3,7 @@
 //
 
 #include "interface/IExposable.hpp"
-#include "Registrar/TypeInfo.hpp"
-#include "Registrar/SharedRegistrar.tpp"
+#include "Registrar/TypeInfo.tpp"
 #include "interface/Scriber/ScribeDriver.hpp"
 
 using namespace QuanFloq;
@@ -25,6 +24,12 @@ IExposable::IExposable( std::string_view f ) {
 }
 void IExposable::RegisterName( std::string_view name ) {
 	std::string_view name2 = name.empty() ? GetName() : name;
-	if (!name2.empty())
-		GetType().iRegistrar->RegisterName(name2, this);
+	if (!name2.empty()) {
+		auto registrar = GetType().iRegistrar;
+		if (registrar != nullptr)
+			registrar->RegisterName(name2, this);
+	}
+}
+std::string_view IExposable::GetName() const {
+	return "";
 }

@@ -1,2 +1,2 @@
 target_sources(Registrar INTERFACE
-		IRegistrar.cpp Registration.cpp TypeInfo.cpp)
+		IRegistrar.cpp Registration.cpp TypeInfo.cpp Factory.cpp)

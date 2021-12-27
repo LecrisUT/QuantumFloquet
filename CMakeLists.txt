@@ -29,7 +29,7 @@ target_include_directories(Base
 		INTERFACE include)
 
 ## Public targets
-
+add_library(Thing SHARED)
 
 add_subdirectory(src)
 add_subdirectory(include)

@@ -1,0 +1,45 @@
+{
+  "ThingDefs": [
+    {
+      "Name": "A",
+      "Type": "ADef",
+      "Thing": "A"
+    },
+    {
+      "Name": "B1",
+      "Type": "BDef",
+      "Thing": "B",
+      "Driver": "BDriver1",
+      "Comps": [
+        "BCompA"
+      ]
+    },
+    {
+      "Name": "B2",
+      "Type": "BDef",
+      "Thing": "B",
+      "Driver": "BDriver1",
+      "Comps": [
+        "BCompB"
+      ]
+    },
+    {
+      "Name": "C",
+      "Type": "CDef",
+      "Thing": "C"
+    }
+  ],
+  "CompDefs": [
+    {
+      "Name": "BCompA",
+      "Type": "BCompADef",
+      "Driver": "BCompADriver1",
+      "Comp": "BCompA"
+    },
+    {
+      "Name": "BCompB",
+      "Type": "BCompBDef",
+      "Comp": "BCompB"
+    }
+  ]
+}

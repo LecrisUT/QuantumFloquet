@@ -19,22 +19,22 @@
 
 ## Roadmap:
 
-- [ ] Extensible framework for the quantum objects
-    - [ ] Save/Load variables `IExposable`, `Scriber`, etc.
-    - [ ] Auto-Registration of the C++ class `TypeInfo`, `TypeRegistrar`, etc.
-    - [ ] Registration interface
-    - [ ] Extensible `Thing` interface
-        - [ ] `ThingCache`: Cache object containing a link to the called object and cached function interfaces. Linked
+- [x] Extensible framework for the quantum objects
+    - [x] Save/Load variables `IExposable`, `Scriber`, etc.
+    - [x] Auto-Registration of the C++ class `TypeInfo`, `TypeRegistrar`, etc.
+    - [x] Registration interface
+    - [x] Extensible `Thing` interface
+        - [x] `ThingCache`: Cache object containing a link to the called object and cached function interfaces. Linked
           to `ThingDriver` and `IThing`
-        - [ ] `ThingDriver`: Flexible driver class of `IThing`, which are implementation dependent
-        - [ ] `IThing`: High-level interface
-        - [ ] `ThingDef`: Definition and constructor of `Thing` defining the Thing's class, driver and components
+        - [x] `ThingDriver`: Flexible driver class of `IThing`, which are implementation dependent
+        - [x] `IThing`: High-level interface
+        - [x] `ThingDef`: Definition and constructor of `Thing` defining the Thing's class, driver and components
           (if applicable). Human-readable interface via `JSON`
-        - [ ] `ThingComp`: Extendable components beyond the `IThing` interface and `Thing_t` data structure. Contains
+        - [x] `ThingComp`: Extendable components beyond the `IThing` interface and `Thing_t` data structure. Contains
           similar framework as `Thing` (`CompCache`, `CompDef`, `CompDriver`, `IComp`)
-        - [ ] `Thing_t`: Variable data structure
-        - [ ] `Thing`: Top level class implementing all of the above
-    - [ ] File interface `JSON` only for now
+        - [x] `ThingData`: Variable data structure
+        - [x] `Thing`: Top level class implementing all of the above
+    - [x] File interface `JSON` only for now
     - [ ] CLI interface
 - [ ] Hamiltonian `Thing` implementation
     - [ ] Basic wave function interface, e.g. `$H\ket{\Psi}$`

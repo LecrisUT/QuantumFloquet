@@ -25,7 +25,7 @@ namespace QuanFloq {
 		explicit IExposable( std::string_view format );
 	public:
 		virtual void ExposeData( Scriber& scriber );
-		virtual std::string_view GetName() const = 0;
+		virtual std::string_view GetName() const;
 		virtual const TypeInfo& GetType() const;
 		virtual void RegisterName( std::string_view name = "" );
 	};
